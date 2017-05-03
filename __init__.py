@@ -1447,7 +1447,7 @@ class VIEW3D_PT_ypanel(bpy.types.Panel):
             elif mo_mode != 'OFF':
                 self.material_override_recover_panel() # Material override recover panel
 
-        if obj and obj.type == 'MESH':
+        if obj and obj.type in {'MESH', 'CURVE'}:
             
             #if context.mode not in {'SCULPT', 'PAINT_WEIGHT'}:
             if context.mode not in {'PAINT_WEIGHT'}:
@@ -1462,15 +1462,15 @@ class VIEW3D_PT_ypanel(bpy.types.Panel):
                     mat = mat.active_node_material
                     use_nodes = True
 
-                # Check if uv is found
-                uv_found = False
-                if len(obj.data.uv_textures) > 0:
-                    uv_found = True
-
                 self.material_panel(mat, parent_mat) # Material Panel
-                    
-                if engine != 'CYCLES' and mat and mo_mode != 'LIGHTING_ONLY':
+
+                if obj.type == 'MESH' and engine != 'CYCLES' and mat and mo_mode != 'LIGHTING_ONLY':
                 #if mat and not use_nodes and mo_mode != 'LIGHTING_ONLY':
+
+                    # Check if uv is found
+                    uv_found = False
+                    if len(obj.data.uv_textures) > 0:
+                        uv_found = True
                     
                     self.paint_slots_panel(mat, uv_found, parent_mat) # Paint slot panel
 
