@@ -1,6 +1,13 @@
 import bpy, os
 from mathutils import Color
 
+possible_dir_names = {
+        'ypanel',
+        'ypanel-master',
+        'yPanel',
+        'yPanel-master'
+        }
+
 def get_active_material():
     mat = bpy.context.object.active_material
     if mat and mat.use_nodes:
@@ -17,19 +24,22 @@ def in_active_layer(obj):
 
 def get_addon_filepath():
 
-    root = bpy.utils.script_path_user()
     sep = os.sep
 
-    # get addons folder
-    filepath = root + sep + "addons"
+    # Search for addon dirs
+    roots = bpy.utils.script_paths()
 
-    # Dealing with two possible name for addon folder
-    dirs = next(os.walk(filepath))[1]
-    folder = [x for x in dirs if 
-            x == 'ypanel' or x == 'ypanel-master' or x == 'yPanel' or x == 'yPanel-master'][0]
+    for root in roots:
+        if os.path.basename(root) != 'scripts': continue
+        filepath = root + sep + 'addons'
 
-    # Data necessary are in lib.blend
-    return filepath + sep + folder + sep
+        dirs = next(os.walk(filepath))[1]
+        folders = [x for x in dirs if x in possible_dir_names]
+
+        if folders:
+            return filepath + sep + folders[0] + sep
+
+    return 'ERROR: No path found for yPanel!'
 
 def srgb_to_linear_per_element(e):
     if e <= 0.03928:
