@@ -998,22 +998,32 @@ class BakeToolsSetting(bpy.types.PropertyGroup):
             name = "Resolution X",
             #description = "Width of the bake texture, does not effect anything if normal map is already used",
             items=(
+                ('8', '8', ''),
+                ('16', '16', ''),
+                ('32', '32', ''),
+                ('64', '64', ''),
                 ('128', '128', ''),
                 ('256', '256', ''),
                 ('512', '512', ''),
                 ('1024', '1024', ''),
-                ('2048', '2048', '')),
+                ('2048', '2048', ''),
+                ('4096', '4096', '')),
             default = '1024')
 
     res_y = EnumProperty(
             name = "Resolution Y",
             #description = "Height of the bake texture, does not effect anything if normal map is already used",
             items=(
+                ('8', '8', ''),
+                ('16', '16', ''),
+                ('32', '32', ''),
+                ('64', '64', ''),
                 ('128', '128', ''),
                 ('256', '256', ''),
                 ('512', '512', ''),
                 ('1024', '1024', ''),
-                ('2048', '2048', '')),
+                ('2048', '2048', ''),
+                ('4096', '4096', '')),
             default = '1024')
 
     sample = EnumProperty(
