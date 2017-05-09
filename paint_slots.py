@@ -1040,16 +1040,12 @@ def merge_texture_slot_using_bake(ts_list):
     bpy.data.meshes.remove(plane)
     bpy.data.materials.remove(temp_mat)
 
-    baked_img.name = base_image.name
+    # Copy image pixels
+    pxs = list(baked_img.pixels)
+    base_image.pixels = pxs
 
-    # Set any texture who use base image to use baked image image instead
-    for tex in bpy.data.textures:
-        if tex and tex.type == 'IMAGE' and tex.image == base_image:
-            tex.image = baked_img
-
-    # Delete base image
-    base_image.user_clear()
-    bpy.data.images.remove(base_image)
+    # Delete baked image
+    bpy.data.images.remove(baked_img, do_unlink=True)
 
 class MergeSlotBake(bpy.types.Operator):
     bl_idname = "paint.yp_merge_slot_bake"
@@ -1143,6 +1139,224 @@ class MergeSlotBake(bpy.types.Operator):
             mat.paint_active_slot = ps_idx_1-1
 
         bpy.ops.material.yp_refresh_paint_slots()
+
+        return {'FINISHED'}
+
+def bake_to_other_uv(obj, texture, source_uv_name, target_uv_name, margin):
+    scene = bpy.context.scene
+    mesh = obj.data
+
+    # Duplicate object
+    obj.data = obj.data.copy()
+    temp_mesh = obj.data
+
+    # Clear and create temp material for baking
+    temp_mesh.materials.clear()
+    temp_mat = bpy.data.materials.new('__bake_temp_')
+    temp_mesh.materials.append(temp_mat)
+
+    # Make material use alpha and shadeless
+    temp_mat.use_transparency = True
+    temp_mat.alpha = 0.0
+    temp_mat.use_shadeless = True
+
+    # Add texture
+    #tex = ts.texture
+    img = texture.image
+    temp_mat.texture_slots.add()
+    temp_mat.texture_slots[0].texture = texture
+    temp_mat.texture_slots[0].uv_layer = source_uv_name
+    temp_mat.texture_slots[0].use_map_alpha = True
+
+    # Temp mesh target UV
+    uv = temp_mesh.uv_textures.get(target_uv_name)
+    uv.active_render = True
+    temp_mesh.uv_textures.active = uv
+
+    # Create target image and set uv to use this image
+    target_img = img.copy()
+    target_img.name = img.name + '_' + target_uv_name
+    for i, data in enumerate(uv.data):
+        uv.data[i].image = target_img
+
+    # Remember!
+    ori_bake_type = scene.render.bake_type
+    ori_bake_margin = scene.render.bake_margin
+    ori_bake_clear = scene.render.use_bake_clear
+
+    # Bake!
+    scene.render.bake_type = 'FULL'
+    scene.render.use_bake_clear = True
+    scene.render.bake_margin = margin
+    bpy.ops.object.bake_image()
+
+    # Revert!
+    scene.render.bake_type = ori_bake_type
+    scene.render.bake_margin = ori_bake_margin
+    scene.render.use_bake_clear = ori_bake_clear
+
+    # Delete temp data
+    temp_mesh.materials.clear()
+    bpy.data.materials.remove(temp_mat, do_unlink=True)
+
+    # Back to original mesh
+    obj.data = mesh
+
+    # Delete temp mesh
+    bpy.data.meshes.remove(temp_mesh, do_unlink=True)
+
+    return target_img
+
+class BakeImageToAnotherUV(bpy.types.Operator):
+    bl_idname = "paint.yp_bake_image_to_another_uv"
+    bl_label = "Convert image(s) to other UV"
+    bl_description = "Convert image(s) to other UV"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    uv_target_name = StringProperty(name="UV Target Name")
+    uv_coll = CollectionProperty(type=bpy.types.PropertyGroup)
+    bake_margin = IntProperty(default=5, subtype='PIXEL', name='Bake Margin')
+    overwrite = BoolProperty(name='Overwrite Source Image', default=True)
+
+    mode = EnumProperty(
+        name = 'Mode',
+        items = (('ACTIVE_ONLY', "Only active paint slot", ""),
+                 ('ALL_MATERIAL_IMAGES', "All Material paint slots", "")),
+        default = 'ACTIVE_ONLY')
+
+    def get_active_texture_slot(self):
+        mat = get_active_material()
+        ps_idx = mat.paint_active_slot
+        ts_idx = mat.texture_paint_slots[ps_idx].index
+        ts = mat.texture_slots[ts_idx]
+        return ts
+
+    @classmethod
+    def poll(cls, context):
+        obj = context.object
+        return obj and obj.type == 'MESH' and len(obj.data.uv_textures) > 0
+
+    def invoke(self, context, event):
+        obj = context.object
+        ts = self.get_active_texture_slot()
+
+        if len(obj.data.uv_textures) < 2:
+            return self.execute(context)
+
+        if ts.uv_layer == '':
+            source_uv_name = obj.data.uv_textures.active.name
+        else: source_uv_name = ts.uv_layer
+        
+        self.uv_coll.clear()
+        for uv in obj.data.uv_textures:
+            if uv.name != source_uv_name:
+                self.uv_coll.add().name = uv.name
+        return context.window_manager.invoke_props_dialog(self)
+
+    def draw(self, context):
+        layout = self.layout
+        ts = self.get_active_texture_slot()
+        row = layout.row()
+        c = row.column()
+        c.label('UV Target')
+        c.label('Bake Margin')
+        c = row.column()
+        c.prop_search(self, "uv_target_name", self, "uv_coll", text='', icon='GROUP_UVS')
+        c.prop(self, 'bake_margin', text='')
+        c.prop(self, 'overwrite', text='Overwrite image')
+
+    def execute(self, context):
+        obj = context.object
+        mesh = obj.data
+        scene = context.scene
+        mat = get_active_material()
+
+        if len(obj.data.uv_textures) < 2:
+            self.report({'ERROR'}, "Need at least two UV Maps!")
+            return {'CANCELLED'}
+
+        if self.uv_target_name == '':
+            self.report({'ERROR'}, "UV target cannot be empty!")
+            return {'CANCELLED'}
+
+        if self.mode == 'ACTIVE_ONLY':
+            slots = [self.get_active_texture_slot()]
+        elif self.mode == 'ALL_MATERIAL_IMAGES':
+            slots = []
+            for ps in mat.texture_paint_slots:
+                slots.append(mat.texture_slots[ps.index])
+
+        # Successful counter
+        success = 0
+
+        for ts in slots:
+
+            # Get uv target and source
+            uv_target = obj.data.uv_textures.get(self.uv_target_name)
+            if ts.uv_layer == '':
+                uv_source = obj.data.uv_textures.active
+            else: uv_source = obj.data.uv_textures.get(ts.uv_layer)
+
+            # Get texture and image
+            tex = ts.texture
+            img = tex.image
+
+            if ts.uv_layer == '':
+                self.report({'WARNING'}, "Paint Slot '" + img.name +"' UV Map is empty! So it uses the active UV Map ('" + obj.data.uv_textures.active.name + "') as source!")
+
+            if self.uv_target_name == uv_source.name:
+                self.report({'ERROR'}, "Convert process of '" + img.name + "' skipped because source and target uv is same (" + uv_target.name + ")!")
+                continue
+
+            # Get baked image
+            baked_img = bake_to_other_uv(obj, tex, uv_source.name, uv_target.name, self.bake_margin)
+
+            # Dealing with target image
+            if self.overwrite:
+                # Copy image pixels
+                pxs = list(baked_img.pixels)
+                img.pixels = pxs
+
+                bpy.data.images.remove(baked_img, do_unlink=True)
+                # Use new uv map
+                ts.uv_layer = uv_target.name
+            else:
+                # Cerate new texture slot if not overwriting
+                new_ts = mat.texture_slots.add()
+                new_tex = bpy.data.textures.new(baked_img.name, 'IMAGE')
+                new_tex.image= baked_img
+                new_ts.texture = new_tex
+                new_ts.uv_layer = uv_target.name
+
+                ts_attr_list = dir(ts)
+
+                for attr in ts_attr_list:
+                    if attr not in {'output_node', 'texture', 'uv_layer'}:
+                        try: setattr(new_ts, attr, getattr(ts, attr))
+                        except: pass
+
+                bpy.ops.material.yp_refresh_paint_slots()
+
+                # Disable source slot and select new paint slot
+                target_ts_idx = -1
+                for i, slot in enumerate(mat.texture_slots):
+                    if slot == ts:
+                        mat.use_textures[i] = False
+                    if slot == new_ts:
+                        target_ts_idx = i
+
+                target_ps_idx = -1
+                for i, ps in enumerate(mat.texture_paint_slots):
+                    #print(ps.index)
+                    if ps.index == target_ts_idx:
+                        target_ps_idx = i
+
+                mat.paint_active_slot = target_ps_idx
+
+            success += 1
+
+        if success == 0:
+            return {'CANCELLED'}
 
         return {'FINISHED'}
 
@@ -1619,6 +1833,7 @@ class PaintTextureSpecialMenu(bpy.types.Menu):
         layout.operator("paint.yp_merge_slot_bake", text="Merge Up", icon='TRIA_UP').type = 'UP'
         #layout.operator("paint.yp_merge_slot_bake", text="Merge Down", icon='TRIA_DOWN').type = 'DOWN'
         layout.operator("paint.yp_duplicate_texture_paint_slot", text="Duplicate", icon='COPY_ID')
+        layout.operator("paint.yp_bake_image_to_another_uv", text='Convert all images to another UV', icon='RENDER_STILL').mode = 'ALL_MATERIAL_IMAGES'
         if mat.use_nodes:
             node_mat = mat.active_node_material
             layout.operator("paint.yp_duplicate_other_material_paint_slots", text="Duplicate Main Material Paint Slots", icon='COPY_ID').other_mat_name = mat.name

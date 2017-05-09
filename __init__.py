@@ -9,12 +9,6 @@ bl_info = {
     "category": "3D View",
 }
 
-# yet to do:
-# bake local
-# bake at rest pose
-# merge all same type paint slot
-# rgbm bake
-
 if "bpy" in locals():
     import imp
     #imp.reload(common)
@@ -889,7 +883,10 @@ class VIEW3D_PT_ypanel(bpy.types.Panel):
                 incol = inbox.column()
                 incol.prop(tslot, "offset")
                 incol.prop(tslot, "scale")
-                incol.separator()
+                #incol.separator()
+                incol = inbox.column(align=True)
+                incol.operator("paint.yp_bake_image_to_another_uv", text='Convert image to other UV', icon='RENDER_STILL').mode = 'ACTIVE_ONLY'
+                #incol.operator("paint.yp_bake_image_to_another_uv", text='Convert all images to other UV', icon='RENDER_STILL').mode = 'ALL_MATERIAL_IMAGES'
                 incol.operator("mesh.yp_add_simple_uvs", icon='ERROR', text='Redo simple UVs')
                 
                 col.separator()
