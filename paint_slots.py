@@ -1240,8 +1240,8 @@ class BakeImageToAnotherUV(bpy.types.Operator):
         obj = context.object
         ts = self.get_active_texture_slot()
 
-        if len(obj.data.uv_textures) < 2:
-            return self.execute(context)
+        #if len(obj.data.uv_textures) < 2:
+        #    return self.execute(context)
 
         if ts.uv_layer == '':
             source_uv_name = obj.data.uv_textures.active.name
@@ -1249,8 +1249,9 @@ class BakeImageToAnotherUV(bpy.types.Operator):
         
         self.uv_coll.clear()
         for uv in obj.data.uv_textures:
-            if uv.name != source_uv_name:
-                self.uv_coll.add().name = uv.name
+            self.uv_coll.add().name = uv.name
+            #if uv.name != source_uv_name:
+            #    self.uv_coll.add().name = uv.name
         return context.window_manager.invoke_props_dialog(self)
 
     def draw(self, context):
@@ -1271,9 +1272,9 @@ class BakeImageToAnotherUV(bpy.types.Operator):
         scene = context.scene
         mat = get_active_material()
 
-        if len(obj.data.uv_textures) < 2:
-            self.report({'ERROR'}, "Need at least two UV Maps!")
-            return {'CANCELLED'}
+        #if len(obj.data.uv_textures) < 2:
+        #    self.report({'ERROR'}, "Need at least two UV Maps!")
+        #    return {'CANCELLED'}
 
         if self.uv_target_name == '':
             self.report({'ERROR'}, "UV target cannot be empty!")
@@ -1304,9 +1305,9 @@ class BakeImageToAnotherUV(bpy.types.Operator):
             if ts.uv_layer == '':
                 self.report({'WARNING'}, "Paint Slot '" + img.name +"' UV Map is empty! So it uses the active UV Map ('" + obj.data.uv_textures.active.name + "') as source!")
 
-            if self.uv_target_name == uv_source.name:
-                self.report({'ERROR'}, "Convert process of '" + img.name + "' skipped because source and target uv is same (" + uv_target.name + ")!")
-                continue
+            #if self.uv_target_name == uv_source.name:
+            #    self.report({'ERROR'}, "Convert process of '" + img.name + "' skipped because source and target uv is same (" + uv_target.name + ")!")
+            #    continue
 
             # Get baked image
             baked_img = bake_to_other_uv(obj, tex, uv_source.name, uv_target.name, self.bake_margin)
