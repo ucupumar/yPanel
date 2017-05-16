@@ -580,6 +580,8 @@ class BakeStuffs(bpy.types.Operator):
                 if self.type in {'AO', 'LIGHTS'}:
                     m.diffuse_intensity = 1.0
                     m.diffuse_color = (1.0, 1.0, 1.0)
+                    m.use_diffuse_ramp = False
+                    m.use_nodes = False
                 # Copy specular color to diffuse color
                 elif self.type == 'SPECULAR_COLOR':
                     m.diffuse_intensity = 1.0
@@ -772,6 +774,7 @@ class BakeStuffs(bpy.types.Operator):
                     m.bt_props.original_diffuse_color = m.diffuse_color
                     m.bt_props.original_use_nodes = m.use_nodes
                     m.bt_props.original_use_shadeless = m.use_shadeless
+                    m.bt_props.original_use_diffuse_ramp = m.use_diffuse_ramp
 
                     # Remember material active slot
                     for i, ts in enumerate(m.texture_slots):
@@ -860,6 +863,7 @@ class BakeStuffs(bpy.types.Operator):
                     if not m: continue
                     m.diffuse_intensity = m.bt_props.original_diffuse_intensity
                     m.diffuse_color = m.bt_props.original_diffuse_color
+                    m.use_diffuse_ramp = m.bt_props.original_use_diffuse_ramp
                     m.use_nodes = m.bt_props.original_use_nodes
                     if self.type == 'LIGHTS' and opt.set_shadeless:
                         pass
@@ -1115,6 +1119,7 @@ class ObjectBakeToolsProps(bpy.types.PropertyGroup):
 class MaterialBakeToolsProps(bpy.types.PropertyGroup):
     original_active_slots = StringProperty(default='')
     original_diffuse_intensity = FloatProperty(default=0.0, min=0.0, max=1.0)
+    original_use_diffuse_ramp = BoolProperty(default=False)
     original_diffuse_color = FloatVectorProperty(
             size=3, subtype='COLOR', default=(0.0,0.0,0.0), min=0.0, max=1.0)
     original_use_nodes = BoolProperty(default=False)
