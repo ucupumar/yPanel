@@ -365,7 +365,7 @@ class DuplicateSlot(bpy.types.Operator):
 
 class RemoveSlot(bpy.types.Operator):
     """Remove selected texture paint slot"""
-    bl_idname = "paint.remove_texture_paint_slot"
+    bl_idname = "paint.yp_remove_texture_paint_slot"
     bl_label = "Remove selected texture paint slot"
     bl_options = {'REGISTER', 'UNDO'}
 
@@ -381,8 +381,9 @@ class RemoveSlot(bpy.types.Operator):
 
         tex_id = mat.texture_paint_slots[mat.paint_active_slot].index
 
+        #mat.texture_slots[tex_id].texture = None
         mat.texture_slots.clear(tex_id)
-        bpy.ops.material.yp_refresh_paint_slots(all_materials=False)
+        bpy.ops.material.yp_refresh_paint_slots(all_materials=True)
 
         # Remove force visible influence parameters
         reset_force_visible_influences(mat, tex_id)
@@ -410,7 +411,7 @@ class RemoveSlotWithPrompt(bpy.types.Operator):
     def execute(self, context):
         mat = get_active_material()
         idx = mat.paint_active_slot
-        bpy.ops.paint.remove_texture_paint_slot()
+        bpy.ops.paint.yp_remove_texture_paint_slot()
         bpy.ops.material.yp_refresh_paint_slots()
         mat.paint_active_slot = min(idx, len(mat.texture_paint_images)-1)
         return {'FINISHED'}

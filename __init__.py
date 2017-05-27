@@ -656,6 +656,9 @@ class VIEW3D_PT_ypanel(bpy.types.Panel):
 
         if not needs_update:
             for i, tps in enumerate(mat.texture_paint_slots):
+                #if tps.index < 0:
+                #    needs_update = True
+                #    break
                 ts = mat.texture_slots[tps.index]
                 if not ts or mat.texture_paint_images[i] != ts.texture.image:
                     needs_update = True
@@ -676,7 +679,7 @@ class VIEW3D_PT_ypanel(bpy.types.Panel):
 
         if bpy.context.mode == 'PAINT_TEXTURE':
             col.operator("paint.yp_remove_texture_paint_slot_with_prompt", text="", icon='ZOOMOUT')
-        else: col.operator("paint.remove_texture_paint_slot", text="", icon='ZOOMOUT')
+        else: col.operator("paint.yp_remove_texture_paint_slot", text="", icon='ZOOMOUT')
 
         col.operator("paint.yp_slot_move", text='', icon='TRIA_UP').type = 'UP'
         col.operator("paint.yp_slot_move", text='', icon='TRIA_DOWN').type = 'DOWN'
@@ -724,7 +727,7 @@ class VIEW3D_PT_ypanel(bpy.types.Panel):
             #col.template_ID_preview(tool_settings, 'canvas')
 
             row = col.row(align=True)
-            #row.template_ID(tex, "image", open="image.open", unlink='paint.remove_texture_paint_slot')
+            #row.template_ID(tex, "image", open="image.open", unlink='paint.yp_remove_texture_paint_slot')
             if bpy.context.mode == 'PAINT_TEXTURE':
                 row.template_ID(tex, "image", 
                         #open='paint.yp_open_paint_texture_from_file', 
@@ -732,7 +735,7 @@ class VIEW3D_PT_ypanel(bpy.types.Panel):
             else: 
                 row.template_ID(tex, "image", 
                         #open='paint.yp_open_paint_texture_from_file', 
-                        unlink='paint.remove_texture_paint_slot')
+                        unlink='paint.yp_remove_texture_paint_slot')
             #if img.is_dirty:
             row.operator("paint.yp_reload_texture_paint", text="", icon='FILE_REFRESH')
             if self.is_collapsed('generated_image_setting'):
