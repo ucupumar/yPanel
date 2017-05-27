@@ -656,9 +656,9 @@ class VIEW3D_PT_ypanel(bpy.types.Panel):
 
         if not needs_update:
             for i, tps in enumerate(mat.texture_paint_slots):
-                #if tps.index < 0:
-                #    needs_update = True
-                #    break
+                if tps.index < 0 or tps.index >= len(mat.texture_slots):
+                    needs_update = True
+                    break
                 ts = mat.texture_slots[tps.index]
                 if not ts or mat.texture_paint_images[i] != ts.texture.image:
                     needs_update = True

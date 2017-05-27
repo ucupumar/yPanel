@@ -522,8 +522,14 @@ class RefreshPaintSlots(bpy.types.Operator):
             # Add material to temporary object
             temp_obj.data.materials.append(m)
 
+        #return {'FINISHED'}
+
         # Refresh paint slots by set this variable
-        scene.tool_settings.image_paint.mode = 'MATERIAL'
+        #scene.tool_settings.image_paint.mode = 'MATERIAL'
+
+        # Refresh paint slots by go to texture paint mode
+        bpy.ops.object.mode_set(mode='TEXTURE_PAINT')
+        bpy.ops.object.mode_set(mode='OBJECT')
 
         # Bring back material which originally use nodes
         for i, m in enumerate(mats):

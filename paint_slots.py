@@ -378,12 +378,13 @@ class RemoveSlot(bpy.types.Operator):
         obj = context.object
         #mat = obj.active_material
         mat = get_active_material()
+        old_mode = obj.mode
 
         tex_id = mat.texture_paint_slots[mat.paint_active_slot].index
 
-        #mat.texture_slots[tex_id].texture = None
-        mat.texture_slots.clear(tex_id)
-        bpy.ops.material.yp_refresh_paint_slots(all_materials=True)
+        mat.texture_slots[tex_id].texture = None
+        #mat.texture_slots.clear(tex_id)
+        bpy.ops.material.yp_refresh_paint_slots(all_materials=False)
 
         # Remove force visible influence parameters
         reset_force_visible_influences(mat, tex_id)
