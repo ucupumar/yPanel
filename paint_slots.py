@@ -947,9 +947,12 @@ def merge_texture_slot_using_render(ts_list):
         new_ts.texture = ts.texture
         new_ts.use_map_alpha = True
         new_ts.alpha_factor = ts.diffuse_color_factor
+        new_ts.diffuse_color_factor = 1.0
 
     # Render
     bpy.ops.render.render()
+
+    #return
 
     # Create temporary image to store render result
     path = os.path.join(tempfile.gettempdir(), "_temp_image.png")
@@ -1207,6 +1210,26 @@ def bake_to_other_uv(obj, texture, source_uv_name, target_uv_name, margin):
 
     return target_img
 
+def get_active_texture_slot():
+    mat = get_active_material()
+    ps_idx = mat.paint_active_slot
+    ts_idx = mat.texture_paint_slots[ps_idx].index
+    ts = mat.texture_slots[ts_idx]
+    return ts
+
+class ResizePaintSlot(bpy.types.Operator):
+    bl_idname = "paint.yp_resize_paint_slot"
+    bl_label = "Resize paint slot"
+    bl_description = "Resize paint slot"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    @classmethod
+    def poll(cls, context):
+        return True
+
+    def execute(self, context):
+        return {'FINISHED'}
+
 class BakeImageToAnotherUV(bpy.types.Operator):
     bl_idname = "paint.yp_bake_image_to_another_uv"
     bl_label = "Convert image(s) to other UV"
@@ -1224,13 +1247,6 @@ class BakeImageToAnotherUV(bpy.types.Operator):
                  ('ALL_MATERIAL_IMAGES', "All Material paint slots", "")),
         default = 'ACTIVE_ONLY')
 
-    def get_active_texture_slot(self):
-        mat = get_active_material()
-        ps_idx = mat.paint_active_slot
-        ts_idx = mat.texture_paint_slots[ps_idx].index
-        ts = mat.texture_slots[ts_idx]
-        return ts
-
     @classmethod
     def poll(cls, context):
         obj = context.object
@@ -1238,7 +1254,7 @@ class BakeImageToAnotherUV(bpy.types.Operator):
 
     def invoke(self, context, event):
         obj = context.object
-        ts = self.get_active_texture_slot()
+        ts = get_active_texture_slot()
 
         #if len(obj.data.uv_textures) < 2:
         #    return self.execute(context)
@@ -1256,7 +1272,7 @@ class BakeImageToAnotherUV(bpy.types.Operator):
 
     def draw(self, context):
         layout = self.layout
-        ts = self.get_active_texture_slot()
+        ts = get_active_texture_slot()
         row = layout.row()
         c = row.column()
         c.label('UV Target')
@@ -1281,7 +1297,7 @@ class BakeImageToAnotherUV(bpy.types.Operator):
             return {'CANCELLED'}
 
         if self.mode == 'ACTIVE_ONLY':
-            slots = [self.get_active_texture_slot()]
+            slots = [get_active_texture_slot()]
         elif self.mode == 'ALL_MATERIAL_IMAGES':
             slots = []
             for ps in mat.texture_paint_slots:
@@ -1310,6 +1326,7 @@ class BakeImageToAnotherUV(bpy.types.Operator):
             #    continue
 
             # Get baked image
+            print(uv_source, uv_target)
             baked_img = bake_to_other_uv(obj, tex, uv_source.name, uv_target.name, self.bake_margin)
 
             # Dealing with target image
