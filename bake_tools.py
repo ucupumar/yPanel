@@ -291,7 +291,10 @@ class BakeStuffs(bpy.types.Operator):
             # Do something on modifiers
             for mod in clone_obj.modifiers:
                 # Remove potentially harmful modiefiers
-                if mod.type in {'SOLIDIFY', 'MIRROR'}:# or (not sce.render.use_bake_multires and mod.type == 'MULTIRES'):
+                if (mod.type in {'SOLIDIFY', 'MIRROR'}
+                    or (mod.type == 'ARMATURE' and opt.use_rest_pose)
+                    # or (not sce.render.use_bake_multires and mod.type == 'MULTIRES'):
+                    ):
                     bpy.ops.object.modifier_remove(modifier = mod.name)
                 else:
                     # Apply all other ones
