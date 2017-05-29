@@ -233,7 +233,7 @@ def viewport_header_addition(self, context):
 
         #if context.mode in {'OBJECT', 'EDIT'}:
         #    layout.prop(toolsettings, "snap_element", icon_only=True, expand=True)
-        #layout.prop(scene, "frame_current", text="")
+        layout.prop(scene, "frame_current", text="")
 
 def global_header_addition(self, context):
     scene = context.scene
