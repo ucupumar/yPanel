@@ -962,6 +962,8 @@ class VIEW3D_PT_ypanel(bpy.types.Panel):
             incol.prop(light, "use_cache")
             incol.prop(light, "correction")
 
+        incol.prop(settings, "isolated_ao", text='Isolate object') #, text='Method')
+
     def bake_normals_settings_panel(self, box):
 
         obj = bpy.context.object
@@ -1011,6 +1013,7 @@ class VIEW3D_PT_ypanel(bpy.types.Panel):
             incol.prop(settings, 'bake_light_direction', text='Direction')
             incol.prop(settings, 'bake_light_linear', text='Linear')
         incol.prop(settings, 'set_shadeless')
+        incol.prop(settings, "isolated_light", text='Isolate object') #, text='Method')
 
     def bake_diffuse_color_settings_panel(self, box):
 

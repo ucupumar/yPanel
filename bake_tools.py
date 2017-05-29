@@ -22,6 +22,43 @@ postfix_dict = {
         }
 
 vcol_mat_name = '__VCOL_MAT_TEMP'
+temp_lamp_name = '__temp_lamp__'
+
+def downsample_image(ss_img, target_img):
+
+    # Create temp scene
+    temp_scene = bpy.data.scenes.new('_temp_scene')
+    bpy.context.screen.scene = temp_scene
+
+    # Set Plane
+    bpy.ops.mesh.primitive_plane_add(radius=1, view_align=False, enter_editmode=True, location=(0, 0, 0))
+    #bpy.ops.uv.unwrap(method='CONFORMAL', margin=0.0)
+    bpy.ops.uv.reset()
+    bpy.ops.object.mode_set(mode='OBJECT') 
+    plane = bpy.context.object.data
+    plane.uv_textures.active.data[0].image = target_img
+
+    # New material for plane
+    ss_mat = bpy.data.materials.new('_supersample_mat')
+    ss_mat.use_shadeless = True
+    ss_tex = bpy.data.textures.new('_supersample_tex', 'IMAGE')
+    ss_tex.image = ss_img
+    ss_ts = ss_mat.texture_slots.add()
+    ss_ts.texture = ss_tex
+    plane.materials.append(ss_mat)
+
+    bpy.ops.object.bake_image()
+
+    # Delete temp scene!
+    bpy.ops.object.select_all(action='SELECT')
+    bpy.ops.object.delete(use_global=False)
+    bpy.ops.scene.delete()
+
+    # delete mesh, material, & camera
+    ss_ts.texture = None
+    ss_tex.image = None
+    bpy.data.textures.remove(ss_tex, do_unlink=True)
+    bpy.data.materials.remove(ss_mat, do_unlink=True)
 
 class BakeStuffs(bpy.types.Operator):
     bl_idname = "view3d.yp_bake_stuffs"
@@ -48,42 +85,6 @@ class BakeStuffs(bpy.types.Operator):
     def poll(cls, context):
         obj = context.object
         return obj and obj.type == 'MESH' and in_active_layer(obj) and context.area.type == 'VIEW_3D'
-
-    def downsample(self, ss_img, target_img):
-
-        # Create temp scene
-        temp_scene = bpy.data.scenes.new('_temp_scene')
-        bpy.context.screen.scene = temp_scene
-
-        # Set Plane
-        bpy.ops.mesh.primitive_plane_add(radius=1, view_align=False, enter_editmode=True, location=(0, 0, 0))
-        #bpy.ops.uv.unwrap(method='CONFORMAL', margin=0.0)
-        bpy.ops.uv.reset()
-        bpy.ops.object.mode_set(mode='OBJECT') 
-        plane = bpy.context.object.data
-        plane.uv_textures.active.data[0].image = target_img
-
-        # New material for plane
-        ss_mat = bpy.data.materials.new('_supersample_mat')
-        ss_mat.use_shadeless = True
-        ss_tex = bpy.data.textures.new('_supersample_tex', 'IMAGE')
-        ss_tex.image = ss_img
-        ss_ts = ss_mat.texture_slots.add()
-        ss_ts.texture = ss_tex
-        plane.materials.append(ss_mat)
-
-        bpy.ops.object.bake_image()
-
-        # Delete temp scene!
-        bpy.ops.object.select_all(action='SELECT')
-        bpy.ops.object.delete(use_global=False)
-        bpy.ops.scene.delete()
-
-        # delete mesh, material, & camera
-        ss_ts.texture = None
-        ss_tex.image = None
-        bpy.data.textures.remove(ss_tex, do_unlink=True)
-        bpy.data.materials.remove(ss_mat, do_unlink=True)
 
     def set_supersample_image(self, m):
         sce = bpy.context.scene
@@ -438,7 +439,7 @@ class BakeStuffs(bpy.types.Operator):
             ss_img = bpy.data.images.get(key)
             target_img = bpy.data.images.get(value)
             print('Downsampling ' + self.target_img.name + '...')
-            self.downsample(ss_img, target_img)
+            downsample_image(ss_img, target_img)
 
         # Delete supersample image
         for img in bpy.data.images:
@@ -501,7 +502,7 @@ class BakeStuffs(bpy.types.Operator):
             bpy.ops.object.select_all(action='DESELECT')
             for o in sce.objects:
                 if o.type == 'LAMP':
-                    if o.name == '__temp_lamp__':
+                    if o.name == temp_lamp_name:
                         lamp = o.data
                         o.select = True
                         sce.objects.active = o
@@ -514,7 +515,13 @@ class BakeStuffs(bpy.types.Operator):
         sce = bpy.context.scene
         opt = sce.bt_props
 
-        if opt.bake_light_type != 'AVAILABLE':
+        self.affected_lights = []
+
+        if opt.bake_light_type == 'AVAILABLE':
+            for obj in sce.objects:
+                if obj.type == 'LAMP' and in_active_layer(obj):
+                    self.affected_lights.append(obj)
+        else:
             self.original_active_lamp = {}
 
             for o in sce.objects:
@@ -532,7 +539,7 @@ class BakeStuffs(bpy.types.Operator):
                 sce.display_settings.display_device = 'None'
         
             new_lamp = bpy.context.object
-            new_lamp.name = '__temp_lamp__'
+            new_lamp.name = temp_lamp_name
             new_lamp.data.use_specular = False
 
             if opt.bake_light_direction == 'UP':
@@ -547,6 +554,8 @@ class BakeStuffs(bpy.types.Operator):
                 new_lamp.rotation_euler = Euler((0.0, math.radians(90), 0.0))
             elif opt.bake_light_direction == 'RIGHT':
                 new_lamp.rotation_euler = Euler((0.0, math.radians(270), 0.0))
+
+            self.affected_lights.append(new_lamp)
 
     def prepare_affected_objs_and_mats(self, o):
         sce = bpy.context.scene
@@ -567,6 +576,36 @@ class BakeStuffs(bpy.types.Operator):
             for ob in sce.objects:
                 if ob.type == 'ARMATURE':
                     ob.data.pose_position = 'REST'
+
+        # Dealing with isolated bake
+        if (self.type == 'AO' and opt.isolated_ao) or (self.type == 'LIGHTS' and opt.isolated_light):
+            #print('aaaaaaa')
+
+            active_layer = [i for i, layer in enumerate(sce.layers) if layer == True][0]
+            inactive_layer = [i for i in range(20) if i != active_layer][0]
+            #print(active_layer, inactive_layer)
+            #print(objs)
+
+            if self.type == 'LIGHTS':
+                affected_objs = objs + self.affected_lights
+            else: affected_objs = objs
+
+            # Disable other layer than active layer
+            for i, layer in enumerate(sce.layers):
+                if i != active_layer:
+                    sce.layers[i] = False
+
+            # Move affected objects to active layer
+            for obj in affected_objs:
+                obj.layers[active_layer] = True
+
+            # Move over other objects to inactive layer
+            for obj in sce.objects:
+                if obj not in affected_objs:
+                    obj.layers[inactive_layer] = True
+                    for i, layer in enumerate(obj.layers):
+                        if i != inactive_layer:
+                            obj.layers[i] = False
 
         for ob in objs:
 
@@ -616,6 +655,13 @@ class BakeStuffs(bpy.types.Operator):
                     #if self.type == 'DIFFUSE_COLOR' and ts.use_rgb_to_intensity:
                     if ts.use_rgb_to_intensity:
                         ts.color = srgb_to_linear(ts.color)
+
+                # Modify modifiers
+                for mod in ob.modifiers:
+                    #if self.type in {'AO', 'LIGHTS'} and mod.type in {'MULTIRES', 'SUBSURF'}:
+                    if self.type in {'AO'} and mod.type in {'MULTIRES', 'SUBSURF'}:
+                        mod.levels = mod.total_levels
+                        mod.render_levels = mod.total_levels
 
             # Modify modifiers
             #if sce.render.use_bake_multires and not opt.use_highpoly:
@@ -744,7 +790,7 @@ class BakeStuffs(bpy.types.Operator):
         self.original_active_object = context.object
         self.original_selected_objects = [o for o in sce.objects if o.select]
         #self.old_mode = context.object.mode
-        #self.old_active_layers = [i for i, layer in enumerate(sce.layers) if layer == True]
+        self.old_active_layers = [i for i, layer in enumerate(sce.layers) if layer == True]
 
         # Remember bake setting
         self.original_margin = sce.render.bake_margin
@@ -758,12 +804,15 @@ class BakeStuffs(bpy.types.Operator):
         self.original_slot_colors = {}
         self.original_pose_position = {}
 
+        self.original_object_layers = {}
+
         for o in sce.objects:
 
-            # Remember original layers
-            o.bt_props.original_layers = ''
-            for i, layer_active in enumerate(o.layers):
-                if layer_active: o.bt_props.original_layers += str(i) + ';'
+            # Remember object layers
+            self.original_object_layers[o.name] = []
+            for i, layer in enumerate(o.layers):
+                if layer:
+                    self.original_object_layers[o.name].append(i)
 
             if o.type == 'ARMATURE':
                 self.original_pose_position[o.name] = o.data.pose_position
@@ -821,6 +870,14 @@ class BakeStuffs(bpy.types.Operator):
         sce.render.use_bake_multires = self.original_use_bake_multires
         #sce.render.bake.use_selected_to_active = self.original_bake_use_selected_to_active
         sce.display_settings.display_device = opt.original_color_space
+        
+        # Recover scene layers
+        for i, layer in enumerate(sce.layers):
+            if i in self.old_active_layers:
+                sce.layers[i] = True
+        for i, layer in enumerate(sce.layers):
+            if i not in self.old_active_layers:
+                sce.layers[i] = False
 
         bpy.ops.object.select_all(action='DESELECT')
         sce.objects.active = self.original_active_object
@@ -830,12 +887,16 @@ class BakeStuffs(bpy.types.Operator):
                 o.select = True
             else: o.select = False
 
-            original_layers = [int(i) for i in o.bt_props.original_layers.split(';') if i != '']
-            for i, value in enumerate(o.layers):
-                if i in original_layers:
-                    o.layers[i] = True
-                else: o.layers[i] = False
-            #o.bt_props.original_layers = ''
+            # Recover object layers
+            if o.name in self.original_object_layers:
+                # Set active layer
+                for i, layer in enumerate(o.layers):
+                    if i in self.original_object_layers[o.name]:
+                        o.layers[i] = True
+                # Set inactive layer
+                for i, layer in enumerate(o.layers):
+                    if i not in self.original_object_layers[o.name]:
+                        o.layers[i] = False
 
             if o.type == 'ARMATURE':
                 o.data.pose_position = self.original_pose_position[o.name]
@@ -854,8 +915,8 @@ class BakeStuffs(bpy.types.Operator):
                         o.modifiers[i].show_viewport = True
                     else: o.modifiers[i].show_viewport = False
 
-                    if mod.type in {'MULTIRES', 'SUBSURF'}:
-                        if not opt.set_multires_level_to_base:
+                    if mod.type in {'MULTIRES', 'SUBSURF'}: 
+                        if not opt.set_multires_level_to_base or self.type in {'AO'}: #, 'LIGHTS'}:
                             mod.levels = o.bt_props.original_multires_preview
                             mod.render_levels = o.bt_props.original_multires_render
 
@@ -1112,8 +1173,11 @@ class BakeToolsSetting(bpy.types.PropertyGroup):
 
     set_shadeless = BoolProperty(name='Set Shadeless after Baking', default=True)
 
+    isolated_ao = BoolProperty(name="Isolate object so other objects won't affect the ao result", default=False)
+    isolated_light = BoolProperty(name="Isolate object so other objects won't affect the baked light result", default=False)
+
 class ObjectBakeToolsProps(bpy.types.PropertyGroup):
-    original_layers = StringProperty(default='')
+    #original_layers = StringProperty(default='')
     original_modifiers_show_render = StringProperty(default='')
     original_modifiers_show_viewport = StringProperty(default='')
     original_multires_preview = IntProperty(default=0)
