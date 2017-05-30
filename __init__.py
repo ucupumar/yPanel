@@ -1012,7 +1012,7 @@ class VIEW3D_PT_ypanel(bpy.types.Panel):
         if settings.bake_light_type in {'SUN', 'HEMI'}:
             incol.prop(settings, 'bake_light_direction', text='Direction')
             incol.prop(settings, 'bake_light_linear', text='Linear')
-        incol.prop(settings, 'set_shadeless')
+        incol.prop(settings, 'set_shadeless_after_baking_lights')
         incol.prop(settings, "isolated_light", text='Isolate object') #, text='Method')
 
     def bake_diffuse_color_settings_panel(self, box):
@@ -1034,6 +1034,17 @@ class VIEW3D_PT_ypanel(bpy.types.Panel):
         incol = inbox.column()
         incol.prop(settings, 'specular_color_suffix', text='Suffix')
         incol.prop(settings, 'specular_blend', text='Blend')
+
+    def bake_full_render_settings_panel(self, box):
+
+        settings = bpy.context.scene.bt_props
+
+        col = box.column()
+        inbox = col.box()
+        incol = inbox.column()
+        incol.prop(settings, 'full_render_suffix', text='Suffix')
+        incol.prop(settings, 'full_render_blend', text='Blend')
+        incol.prop(settings, 'set_shadeless_after_baking_full_render')
 
     def bake_tools_panel(self, mat):
 
@@ -1076,6 +1087,8 @@ class VIEW3D_PT_ypanel(bpy.types.Panel):
                 self.bake_diffuse_color_settings_panel(box)
             elif settings.bake_type == 'SPECULAR_COLOR':
                 self.bake_specular_color_settings_panel(box)
+            elif settings.bake_type == 'FULL_RENDER':
+                self.bake_full_render_settings_panel(box)
 
         #col = box.column(align=True)
 

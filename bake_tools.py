@@ -11,15 +11,6 @@ from .common import *
 # Report if no bake happen, especially on failed normal bake V
 # Bake at shadeless
 
-postfix_dict = {
-        'NORMALS' : '_N',
-        'AO' : '_AO',
-        'DIRTY' : '_DVC',
-        'LIGHTS' : '_L',
-        'DIFFUSE_COLOR' : '_D',
-        'SPECULAR_COLOR' : '_S',
-        }
-
 blend_type_items = (("MIX", "Mix", ""),
 	             ("ADD", "Add", ""),
 	             ("SUBTRACT", "Subtract", ""),
@@ -92,6 +83,7 @@ class BakeStuffs(bpy.types.Operator):
             ('LIGHTS', "Lights", ""),
             ('DIFFUSE_COLOR', "Diffuse Color", ""),
             ('SPECULAR_COLOR', "Specular Color", ""),
+            ('FULL_RENDER', "Full Render", ""),
             #('POINTINESS', "Pointiness", ""),
             ), 
         default='AO',
@@ -127,7 +119,6 @@ class BakeStuffs(bpy.types.Operator):
         self.target_tex = None
 
         # New image suffix
-        #suffix = postfix_dict[self.type]
         suffix = getattr(opt, self.type.lower() + '_suffix')
 
         # Overwrite already available target image
@@ -415,7 +406,7 @@ class BakeStuffs(bpy.types.Operator):
         if self.type == 'DIRTY':
             sce.render.bake_type = 'VERTEX_COLORS'
             #sce.render.bake_type = 'FULL'
-        elif self.type in {'LIGHTS'}:
+        elif self.type in {'LIGHTS', 'FULL_RENDER'}:
             sce.render.bake_type = 'FULL'
         #elif self.type == 'DIFFUSE_COLOR':
         elif self.type in {'DIFFUSE_COLOR', 'SPECULAR_COLOR'}:
@@ -653,7 +644,7 @@ class BakeStuffs(bpy.types.Operator):
                         if ts.use_map_normal: continue
 
                     # Disable textures on other than diffuse bake
-                    if self.type not in {'DIFFUSE_COLOR', 'SPECULAR_COLOR'}:
+                    if self.type not in {'DIFFUSE_COLOR', 'SPECULAR_COLOR', 'FULL_RENDER'}:
                         m.use_textures[i] = False
 
                     # Make diffuse active on specular color
@@ -782,7 +773,9 @@ class BakeStuffs(bpy.types.Operator):
                 #return {'FINISHED'}
 
                 # If set shadeless if forced
-                if self.type == 'LIGHTS' and opt.set_shadeless:
+                if ((self.type == 'LIGHTS' and opt.set_shadeless_after_baking_lights) or
+                    (self.type == 'FULL_RENDER' and opt.set_shadeless_after_baking_full_render)
+                    ):
                     m.use_shadeless = True
 
                 # Activate  paint slot if disabled
@@ -945,7 +938,9 @@ class BakeStuffs(bpy.types.Operator):
                     m.diffuse_color = m.bt_props.original_diffuse_color
                     m.use_diffuse_ramp = m.bt_props.original_use_diffuse_ramp
                     m.use_nodes = m.bt_props.original_use_nodes
-                    if self.type == 'LIGHTS' and opt.set_shadeless:
+                    if ((self.type == 'LIGHTS' and opt.set_shadeless_after_baking_lights) or
+                        (self.type == 'FULL_RENDER' and opt.set_shadeless_after_baking_full_render)
+                        ):
                         pass
                     else: m.use_shadeless = m.bt_props.original_use_shadeless
 
@@ -1073,6 +1068,7 @@ class BakeToolsSetting(bpy.types.PropertyGroup):
             ('LIGHTS', "Lights", ""),
             ('DIFFUSE_COLOR', "Diffuse Color", ""),
             ('SPECULAR_COLOR', "Specular Color", ""),
+            ('FULL_RENDER', "Full Render", ""),
             #('POINTINESS', "Pointiness", ""),
             ), 
         default='AO',
@@ -1156,6 +1152,7 @@ class BakeToolsSetting(bpy.types.PropertyGroup):
     lights_suffix = StringProperty(default='_L')
     diffuse_color_suffix = StringProperty(default='_D')
     specular_color_suffix = StringProperty(default='_S')
+    full_render_suffix = StringProperty(default='_F')
 
     others_influence = BoolProperty(default=True)
 
@@ -1175,6 +1172,7 @@ class BakeToolsSetting(bpy.types.PropertyGroup):
     lights_blend = EnumProperty(items = blend_type_items, default = 'MULTIPLY')
     color_blend = EnumProperty(items = blend_type_items, default = 'MIX')
     specular_blend = EnumProperty(items = blend_type_items, default = 'MIX')
+    full_render_blend = EnumProperty(items = blend_type_items, default = 'MIX')
 
     #multires_base = IntProperty(name='Multires Base', default=0, min=0, max=9)
     subdiv_base = IntProperty(
@@ -1187,7 +1185,8 @@ class BakeToolsSetting(bpy.types.PropertyGroup):
             description = 'Set Multires level to subdivision base after baking (Only works if using own multires)',
             default = True)
 
-    set_shadeless = BoolProperty(name='Set Shadeless after Baking', default=True)
+    set_shadeless_after_baking_lights = BoolProperty(name='Set Shadeless after Baking', default=True)
+    set_shadeless_after_baking_full_render = BoolProperty(name='Set Shadeless after Baking', default=True)
 
     isolated_ao = BoolProperty(name="Isolate object so other objects won't affect the ao result", default=False)
     isolated_light = BoolProperty(name="Isolate object so other objects won't affect the baked light result", default=False)
