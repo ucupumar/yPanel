@@ -6,6 +6,7 @@ from bpy_extras.io_utils import ImportHelper
 from bpy_extras.image_utils import load_image  
 from bpy.app.handlers import persistent
 from .common import *
+from . import bake_tools
 
 # BUG: Cannot delete mumei jacket spec node paint slot V
 # BUG: Duplicate normal paint slot not copy normal map sampling V
@@ -364,9 +365,9 @@ class DuplicateSlot(bpy.types.Operator):
         return {'FINISHED'}
 
 class RemoveSlot(bpy.types.Operator):
-    """Remove selected texture paint slot"""
     bl_idname = "paint.yp_remove_texture_paint_slot"
     bl_label = "Remove selected texture paint slot"
+    bl_description = "Remove selected texture paint slot"
     bl_options = {'REGISTER', 'UNDO'}
 
     @classmethod
@@ -740,6 +741,232 @@ class NewSlot(bpy.types.Operator):
         bpy.ops.material.yp_refresh_paint_slots(all_materials=False)
         # Select newly created image
         mat.paint_active_slot = [i for i, ps in enumerate(mat.texture_paint_images) if ps == img][0]
+
+        return {'FINISHED'}
+
+class AddMaskFromOtherMaterial(bpy.types.Operator):
+    bl_idname = "paint.yp_add_mask_from_other_material"
+    bl_label = "Add mask paint slot from other material face"
+    bl_description = "Add mask paint slot from other material face"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    other_mat_name = StringProperty(
+            name='Other Material Name', 
+            description='Other material on the same object')
+    mat_coll = CollectionProperty(type=bpy.types.PropertyGroup)
+
+    mask_color = FloatVectorProperty(name='Mask Color', size=3, subtype='COLOR', default=(1.0,1.0,1.0), min=0.0, max=1.0)
+    base_color = FloatVectorProperty(name='Base Color', size=3, subtype='COLOR', default=(0.0,0.0,0.0), min=0.0, max=1.0)
+
+    res_x = IntProperty(name="Resolution X", default=1024, min=1, max=4096, subtype='PIXEL')
+    res_y = IntProperty(name="Resolution Y", default=1024, min=1, max=4096, subtype='PIXEL')
+
+    aa_sample = EnumProperty(
+            name = "AA Sample",
+            description = "Sample for antialiasing. WARNING! REALLY SLOW!!",
+            items=(('2', "2x", "2x supersampling"),
+                ('3', "3x", "3x supersampling"),
+                ('4', "4x", "4x supersampling")),
+            default = '4')
+
+    margin = IntProperty(name='Bake Margin', default=5, min=0, max=1024, subtype='PIXEL')
+
+    overwrite = BoolProperty(name='Overwrite available mask',
+            description='Overwrite available paint slot',
+            default=True)
+
+    suffix = StringProperty(name='Paint Slot Suffix', 
+            description='Paint slot result will be source material name + suffix', 
+            default = '_mask')
+
+    use_rgb_to_intensity = BoolProperty(name='Use RGB to Intensity',
+            description='Use RGB to Intensity to newly created paint slot', default=True)
+
+    @classmethod
+    def poll(cls, context):
+        return context.object
+
+    def invoke(self, context, event):
+        self.mat_coll.clear()
+        obj = context.object
+        mats = obj.data.materials
+        #mat = get_active_material()
+        mat = obj.active_material
+        if len(mats) < 2:
+            return self.execute(context)
+        for m in mats:
+            if m != mat:
+                self.mat_coll.add().name = m.name
+        return context.window_manager.invoke_props_dialog(self)
+
+    def draw(self, context):
+        row = self.layout.row()
+        c = row.column()
+        c.label('Source Material:')
+        c.label('Mask Color:')
+        c.label('Base Color:')
+        c.label('AA Sample:')
+        c.label('Width:')
+        c.label('Height:')
+        c.label('Margin:')
+        c.label('Suffix:')
+        c.label('Overwrite:')
+        c.label('Use RGB to Intensity:')
+
+        c = row.column()
+        c.prop_search(self, "other_mat_name", self, "mat_coll", icon='MATERIAL', text='')
+        c.prop(self, 'mask_color', text='')
+        c.prop(self, 'base_color', text='')
+        c.prop(self, 'aa_sample', text='')
+        c.prop(self, 'res_x', text='')
+        c.prop(self, 'res_y', text='')
+        c.prop(self, 'margin', text='')
+        c.prop(self, 'suffix', text='')
+        c.prop(self, 'overwrite', text='')
+        c.prop(self, 'use_rgb_to_intensity', text='')
+
+    def execute(self, context):
+        obj = context.object
+        scene = context.scene
+        mat = get_active_material()
+        mats = obj.data.materials
+        if len(mats) < 2:
+            self.report({'ERROR'}, "Need at least two materials on one object")
+            return {'CANCELLED'}
+        if self.other_mat_name == '':
+            self.report({'ERROR'}, "You must set the source material!")
+            return {'CANCELLED'}
+        if not bpy.data.materials.get(self.other_mat_name):
+            self.report({'ERROR'}, "Material not found!")
+            return {'CANCELLED'}
+
+        # Remember bake settings
+        ori_bake_type = scene.render.bake_type
+        ori_bake_clear = scene.render.use_bake_clear
+        ori_bake_margin = scene.render.bake_margin
+        ori_bake_sel_to_active = scene.render.use_bake_selected_to_active
+
+        # Remember materials
+        ori_difcol = {}
+        ori_active_texslot = {}
+        for m in mats:
+            ori_difcol[m.name] = m.diffuse_color.copy()
+            ori_active_texslot[m.name] = []
+            for i, ut in enumerate(m.use_textures):
+                if ut: ori_active_texslot[m.name].append(i)
+
+        # Remember modifier
+        ori_subd_uvs = {}
+        for mod in obj.modifiers:
+            if mod.type == 'SUBSURF':
+                ori_subd_uvs[mod.name] = mod.use_subsurf_uv
+
+        # Bake preparation
+        scene.render.bake_type = 'TEXTURE'
+        scene.render.use_bake_clear = False
+        scene.render.bake_margin = self.margin * int(self.aa_sample)
+        scene.render.use_bake_selected_to_active = False
+
+        # Material Preparation
+        for m in mats:
+            # Set color
+            if m.name == self.other_mat_name:
+                m.diffuse_color = self.mask_color
+            else:
+                m.diffuse_color = self.base_color
+            #m.use_shadeless = True
+
+            # Disable all texture slots
+            for i, ut in enumerate(m.use_textures):
+                if ut: m.use_textures[i] = False
+
+        # Modifier preparation
+        for mod in obj.modifiers:
+            if mod.type == 'SUBSURF':
+                mod.use_subsurf_uv = False 
+
+        # Get target image
+        result_img_name = self.other_mat_name + self.suffix
+        result_img = None
+        result_ts = None
+        for ts in reversed(mat.texture_slots):
+            if (ts and ts.texture 
+                and ts.texture.type == 'IMAGE' 
+                and ts.texture.image
+                and result_img_name in ts.texture.image.name
+                ):
+                result_ts = ts
+                result_img = ts.texture.image
+                break
+
+        if not self.overwrite or not result_img:
+            result_img = bpy.data.images.new(result_img_name, self.res_x, self.res_y, True, False)
+
+            # Add to active material
+            result_ts = mat.texture_slots.add()
+            tex = bpy.data.textures.new(result_img_name, 'IMAGE')
+            tex.image = result_img
+            result_ts.texture = tex
+            if self.use_rgb_to_intensity:
+                result_ts.use_rgb_to_intensity = True
+
+            # Disable ts for now
+            for i, slot in enumerate(mat.texture_slots):
+                if slot == result_ts: mat.use_textures[i] = False
+                break
+
+        # Create new big image
+        big_img_name = '__temp_big_image'
+        big_img = bpy.data.images.new(big_img_name, 
+                result_img.size[0] * int(self.aa_sample), 
+                result_img.size[1] * int(self.aa_sample),
+                True, False)
+        big_img.generated_color = (self.base_color[0], self.base_color[1], self.base_color[2], 1.0)
+
+        # Set image to polygon
+        for i, p in enumerate(obj.data.polygons):
+            obj.data.uv_textures.active.data[i].image = big_img
+
+        # Bake
+        bpy.ops.object.bake_image()
+
+        # Downsample image
+        bake_tools.downsample_image(big_img, result_img)
+
+        # Enable the texture slot
+        for i, slot in enumerate(mat.texture_slots):
+            if slot == result_ts: mat.use_textures[i] = True
+            break
+
+        # Set result image to polygon
+        for i, p in enumerate(obj.data.polygons):
+            obj.data.uv_textures.active.data[i].image = result_img
+
+        # Delete big image
+        bpy.data.images.remove(big_img, do_unlink=True)
+
+        # Recover bake settings
+        scene.render.bake_type = ori_bake_type
+        scene.render.use_bake_clear = ori_bake_clear
+        scene.render.bake_margin = ori_bake_margin
+        scene.render.use_bake_selected_to_active = ori_bake_sel_to_active
+
+        # Remember materials
+        for m in mats:
+            if m.name in ori_difcol:
+                m.diffuse_color = ori_difcol[m.name]
+            if m.name in ori_active_texslot:
+                for i, ut in enumerate(m.use_textures):
+                    if i in ori_active_texslot[m.name]:
+                        m.use_textures[i] = True
+
+        # Remember modifier
+        for mod in obj.modifiers:
+            if mod.type == 'SUBSURF' and mod.name in ori_subd_uvs:
+                mod.use_subsurf_uv = ori_subd_uvs[mod.name]
+
+        # Refresh paint slots
+        bpy.ops.material.yp_refresh_paint_slots()
 
         return {'FINISHED'}
 
@@ -1854,6 +2081,7 @@ class PaintTextureSpecialMenu(bpy.types.Menu):
         #layout.operator("paint.yp_merge_slot_bake", text="Merge Down", icon='TRIA_DOWN').type = 'DOWN'
         layout.operator("paint.yp_duplicate_texture_paint_slot", text="Duplicate", icon='COPY_ID')
         layout.operator("paint.yp_bake_image_to_another_uv", text='Convert all images to another UV', icon='RENDER_STILL').mode = 'ALL_MATERIAL_IMAGES'
+        layout.operator("paint.yp_add_mask_from_other_material", text='Add mask from other material', icon='SNAP_FACE')
         if mat.use_nodes:
             node_mat = mat.active_node_material
             layout.operator("paint.yp_duplicate_other_material_paint_slots", text="Duplicate Main Material Paint Slots", icon='COPY_ID').other_mat_name = mat.name

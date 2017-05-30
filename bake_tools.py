@@ -1,5 +1,4 @@
 import bpy, time, os, math 
-from . import paint_slots
 from . import material_override
 from mathutils import Euler
 from bpy.props import *
@@ -20,6 +19,23 @@ postfix_dict = {
         'DIFFUSE_COLOR' : '_D',
         'SPECULAR_COLOR' : '_S',
         }
+
+blend_type_items = (("MIX", "Mix", ""),
+	             ("ADD", "Add", ""),
+	             ("SUBTRACT", "Subtract", ""),
+	             ("MULTIPLY", "Multiply", ""),
+	             ("SCREEN", "Screen", ""),
+	             ("OVERLAY", "Overlay", ""),
+	             ("DIFFERENCE", "Difference", ""),
+	             ("DIVIDE", "Divide", ""),
+	             ("DARKEN", "Darken", ""),
+	             ("LIGHTEN", "Lighten", ""),
+	             ("HUE", "Hue", ""),
+	             ("SATURATION", "Saturation", ""),
+	             ("VALUE", "Value", ""),
+	             ("COLOR", "Color", ""),
+	             ("SOFT_LIGHT", "Soft Light", ""),
+	             ("LINEAR_LIGHT", "Linear Light", ""))
 
 vcol_mat_name = '__VCOL_MAT_TEMP'
 temp_lamp_name = '__temp_lamp__'
@@ -1154,11 +1170,11 @@ class BakeToolsSetting(bpy.types.PropertyGroup):
             default=math.radians(90), min=0, max=math.radians(180), subtype='ANGLE')
     dirt_only = BoolProperty(name='Dirt Only', default=True)
 
-    ao_blend = EnumProperty(items = paint_slots.blend_type_items, default = 'MULTIPLY')
-    dirty_blend = EnumProperty(items = paint_slots.blend_type_items, default = 'ADD')
-    lights_blend = EnumProperty(items = paint_slots.blend_type_items, default = 'MULTIPLY')
-    color_blend = EnumProperty(items = paint_slots.blend_type_items, default = 'MIX')
-    specular_blend = EnumProperty(items = paint_slots.blend_type_items, default = 'MIX')
+    ao_blend = EnumProperty(items = blend_type_items, default = 'MULTIPLY')
+    dirty_blend = EnumProperty(items = blend_type_items, default = 'ADD')
+    lights_blend = EnumProperty(items = blend_type_items, default = 'MULTIPLY')
+    color_blend = EnumProperty(items = blend_type_items, default = 'MIX')
+    specular_blend = EnumProperty(items = blend_type_items, default = 'MIX')
 
     #multires_base = IntProperty(name='Multires Base', default=0, min=0, max=9)
     subdiv_base = IntProperty(
