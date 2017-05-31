@@ -777,7 +777,7 @@ class AddMaskFromOtherMaterial(bpy.types.Operator):
 
     suffix = StringProperty(name='Paint Slot Suffix', 
             description='Paint slot result will be source material name + suffix', 
-            default = '_mask')
+            default = '_Mask')
 
     use_rgb_to_intensity = BoolProperty(name='Use RGB to Intensity',
             description='Use RGB to Intensity to newly created paint slot', default=True)
