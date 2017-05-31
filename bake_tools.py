@@ -666,7 +666,7 @@ class BakeStuffs(bpy.types.Operator):
                 # Modify modifiers
                 for mod in ob.modifiers:
                     #if self.type in {'AO', 'LIGHTS'} and mod.type in {'MULTIRES', 'SUBSURF'}:
-                    if self.type in {'AO'} and mod.type in {'MULTIRES', 'SUBSURF'}:
+                    if self.type in {'AO'} and mod.type in {'MULTIRES'}:
                         mod.levels = mod.total_levels
                         mod.render_levels = mod.total_levels
 
