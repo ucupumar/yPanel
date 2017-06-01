@@ -117,6 +117,7 @@ class BakeStuffs(bpy.types.Operator):
         self.target_img = None
         self.temp_img = None
         self.target_tex = None
+        self.target_uv = None
 
         # New image suffix
         suffix = getattr(opt, self.type.lower() + '_suffix')
@@ -133,6 +134,7 @@ class BakeStuffs(bpy.types.Operator):
                 if (ts.texture.image.name.endswith(suffix) or 
                         os.path.splitext(ts.texture.image.name)[0].endswith(suffix)):
                     self.target_img = ts.texture.image
+                    self.target_uv = ts.uv_layer
 
                     # Use temp image to texture
                     #if not opt.antialias and sce.render.engine != 'CYCLES':
@@ -763,6 +765,11 @@ class BakeStuffs(bpy.types.Operator):
                     self.set_supersample_image(actual_mat)
                 self.set_polygon_image(o, m_idx)
 
+                # Set active uv if it's already set
+                if self.target_uv:
+                    uv = o.data.uv_textures.get(self.target_uv)
+                    uv.active = True
+
                 # Bake!
                 print('Baking ' + self.target_img.name + '...')
                 bpy.ops.object.bake_image()
@@ -812,8 +819,8 @@ class BakeStuffs(bpy.types.Operator):
 
         self.original_slot_colors = {}
         self.original_pose_position = {}
-
         self.original_object_layers = {}
+        self.original_object_active_uv = {}
 
         for o in sce.objects:
 
@@ -826,7 +833,12 @@ class BakeStuffs(bpy.types.Operator):
             if o.type == 'ARMATURE':
                 self.original_pose_position[o.name] = o.data.pose_position
 
-            elif o.type in {'MESH', 'CURVE'}:
+            if o.type == 'MESH':
+                # Remember active UV
+                if o.data.uv_layers.active:
+                    self.original_object_active_uv[o.name] = o.data.uv_layers.active.name
+
+            if o.type in {'MESH', 'CURVE'}:
 
                 # Remember material properties
                 for m in o.data.materials:
@@ -892,6 +904,7 @@ class BakeStuffs(bpy.types.Operator):
         sce.objects.active = self.original_active_object
         for o in sce.objects:
 
+            # Recover selection
             if o in self.original_selected_objects:
                 o.select = True
             else: o.select = False
@@ -910,7 +923,13 @@ class BakeStuffs(bpy.types.Operator):
             if o.type == 'ARMATURE':
                 o.data.pose_position = self.original_pose_position[o.name]
 
-            elif o.type in {'MESH', 'CURVE'}:
+            if o.type == 'MESH':
+                # Recover active uv
+                if o.name in self.original_object_active_uv:
+                    uv = o.data.uv_textures.get(self.original_object_active_uv[o.name])
+                    if uv: uv.active = True
+
+            if o.type in {'MESH', 'CURVE'}:
 
                 original_modifiers_show_render = [int(i) for i in o.bt_props.original_modifiers_show_render.split(';') if i != '']
                 original_modifiers_show_viewport = [int(i) for i in o.bt_props.original_modifiers_show_viewport.split(';') if i != '']
