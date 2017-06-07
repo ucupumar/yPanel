@@ -528,6 +528,12 @@ class BakeStuffs(bpy.types.Operator):
 
         self.affected_lights = []
 
+        # Disable world lighting
+        world = sce.world
+        world.light_settings.use_ambient_occlusion = False
+        world.light_settings.use_environment_light = False
+        world.light_settings.use_indirect_light = False
+
         if opt.bake_light_type == 'AVAILABLE':
             for obj in sce.objects:
                 if obj.type == 'LAMP' and in_active_layer(obj):
@@ -805,6 +811,7 @@ class BakeStuffs(bpy.types.Operator):
     def remember_stuffs(self, context):
         sce = context.scene
         opt = sce.bt_props
+        world = sce.world
 
         # Remember active object and object selection
         self.original_active_object = context.object
@@ -828,6 +835,11 @@ class BakeStuffs(bpy.types.Operator):
         self.original_pose_position = {}
         self.original_object_layers = {}
         self.original_object_active_uv = {}
+
+        # Remember world settings
+        self.use_ao = world.light_settings.use_ambient_occlusion
+        self.use_env_light = world.light_settings.use_environment_light
+        self.use_indir_light = world.light_settings.use_indirect_light
 
         for o in sce.objects:
 
@@ -885,6 +897,7 @@ class BakeStuffs(bpy.types.Operator):
     def recover_stuffs(self, context):
         sce = context.scene
         opt = sce.bt_props
+        world = sce.world
 
         # Delete unused data
         self.delete_stuffs()
@@ -899,6 +912,11 @@ class BakeStuffs(bpy.types.Operator):
         #sce.render.bake.use_selected_to_active = self.original_bake_use_selected_to_active
         sce.display_settings.display_device = opt.original_color_space
         sce.render.use_simplify = self.original_use_simplify
+
+        # Recover world settings
+        world.light_settings.use_ambient_occlusion = self.use_ao
+        world.light_settings.use_environment_light = self.use_env_light
+        world.light_settings.use_indirect_light = self.use_indir_light
         
         # Recover scene layers
         for i, layer in enumerate(sce.layers):
