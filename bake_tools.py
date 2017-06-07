@@ -558,6 +558,7 @@ class BakeStuffs(bpy.types.Operator):
             new_lamp = bpy.context.object
             new_lamp.name = temp_lamp_name
             new_lamp.data.use_specular = False
+            new_lamp.data.color = opt.light_color
 
             if opt.bake_light_direction == 'UP':
                 new_lamp.rotation_euler = Euler((0.0, 0.0, 0.0))
@@ -1235,6 +1236,8 @@ class BakeToolsSetting(bpy.types.PropertyGroup):
 
     isolated_ao = BoolProperty(name="Isolate object so other objects won't affect the ao result", default=False)
     isolated_light = BoolProperty(name="Isolate object so other objects won't affect the baked light result", default=False)
+
+    light_color = FloatVectorProperty(name='Light Color', size=3, subtype='COLOR', default=(1.0,1.0,1.0), min=0.0, max=1.0)
 
 class ObjectBakeToolsProps(bpy.types.PropertyGroup):
     #original_layers = StringProperty(default='')

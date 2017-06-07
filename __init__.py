@@ -1011,6 +1011,9 @@ class VIEW3D_PT_ypanel(bpy.types.Panel):
         incol.prop(settings, 'bake_light_type', text='Type')
         if settings.bake_light_type in {'SUN', 'HEMI'}:
             incol.prop(settings, 'bake_light_direction', text='Direction')
+            row = incol.row(align=True)
+            row.label('Light Color:')
+            row.prop(settings, 'light_color', text='')
             incol.prop(settings, 'bake_light_linear', text='Linear')
         incol.prop(settings, 'set_shadeless_after_baking_lights')
         incol.prop(settings, "isolated_light", text='Isolate object') #, text='Method')
