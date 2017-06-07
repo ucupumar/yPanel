@@ -430,6 +430,8 @@ class BakeStuffs(bpy.types.Operator):
         #    sce.render.bake.use_clear = False
         #    sce.render.bake.use_selected_to_active = True
 
+        sce.render.use_simplify = False
+
         if opt.antialias:
             # Supersample image dictionary, for lazy downsampling
             self.ss_dict = {}
@@ -759,16 +761,18 @@ class BakeStuffs(bpy.types.Operator):
                 if not actual_mat:
                     continue
 
-                # Preparing some stuffs
+                # Preparing target and higher res image for antialiasing
                 self.set_target_image(actual_mat)
                 if opt.antialias:
                     self.set_supersample_image(actual_mat)
-                self.set_polygon_image(o, m_idx)
 
                 # Set active uv if it's already set
                 if self.target_uv:
                     uv = o.data.uv_textures.get(self.target_uv)
                     uv.active = True
+
+                # Set target image to polygon
+                self.set_polygon_image(o, m_idx)
 
                 # Bake!
                 print('Baking ' + self.target_img.name + '...')
@@ -816,6 +820,9 @@ class BakeStuffs(bpy.types.Operator):
         self.original_use_bake_selected_to_active = sce.render.use_bake_selected_to_active
         #self.original_bake_use_selected_to_active = sce.render.bake.use_selected_to_active
         opt.original_color_space = sce.display_settings.display_device
+
+        # Remember scene setting
+        self.original_use_simplify = sce.render.use_simplify
 
         self.original_slot_colors = {}
         self.original_pose_position = {}
@@ -891,6 +898,7 @@ class BakeStuffs(bpy.types.Operator):
         sce.render.use_bake_multires = self.original_use_bake_multires
         #sce.render.bake.use_selected_to_active = self.original_bake_use_selected_to_active
         sce.display_settings.display_device = opt.original_color_space
+        sce.render.use_simplify = self.original_use_simplify
         
         # Recover scene layers
         for i, layer in enumerate(sce.layers):
