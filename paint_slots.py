@@ -1377,15 +1377,17 @@ class MergeSlotBake(bpy.types.Operator):
 def bake_to_other_uv(obj, texture, source_uv_name, target_uv_name, margin):
     scene = bpy.context.scene
     mesh = obj.data
+    mat = get_active_material()
 
     # Duplicate object
     obj.data = obj.data.copy()
     temp_mesh = obj.data
 
     # Clear and create temp material for baking
-    temp_mesh.materials.clear()
+    #temp_mesh.materials.clear()
     temp_mat = bpy.data.materials.new('__bake_temp_')
-    temp_mesh.materials.append(temp_mat)
+    #temp_mesh.materials.append(temp_mat)
+    obj.material_slots[mat.name].material = temp_mat
 
     # Make material use alpha and shadeless
     temp_mat.use_transparency = True
@@ -1421,6 +1423,8 @@ def bake_to_other_uv(obj, texture, source_uv_name, target_uv_name, margin):
     scene.render.use_bake_clear = True
     scene.render.bake_margin = margin
     bpy.ops.object.bake_image()
+
+    #return target_img
 
     # Revert!
     scene.render.bake_type = ori_bake_type
@@ -1501,7 +1505,7 @@ class BakeImageToAnotherUV(bpy.types.Operator):
 
     def draw(self, context):
         layout = self.layout
-        ts = get_active_texture_slot()
+        #ts = get_active_texture_slot()
         row = layout.row()
         c = row.column()
         c.label('UV Target')
@@ -1555,8 +1559,10 @@ class BakeImageToAnotherUV(bpy.types.Operator):
             #    continue
 
             # Get baked image
-            print(uv_source, uv_target)
+            #print(uv_source, uv_target)
             baked_img = bake_to_other_uv(obj, tex, uv_source.name, uv_target.name, self.bake_margin)
+
+            #return {'FINISHED'}
 
             # Dealing with target image
             if self.overwrite:
