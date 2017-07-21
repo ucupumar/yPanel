@@ -294,9 +294,19 @@ class BakeStuffs(bpy.types.Operator):
             if clone_obj.type == 'CURVE':
                 bpy.ops.object.convert(target='MESH')
 
-            # Dealing with shape keys
-            if obj.data.shape_keys:
-                bpy.ops.object.shape_key_remove(all=True)
+            # Apply shape keys
+            if clone_obj.data.shape_keys:
+
+                # Add mix shapes
+                bpy.ops.object.shape_key_add(from_mix=True)
+
+                # Get Number of keys
+                keylen = len(clone_obj.data.shape_keys.key_blocks) #+ 1
+                
+                # Delete all shapes
+                for i in range(keylen):
+                    clone_obj.active_shape_key_index = 0
+                    bpy.ops.object.shape_key_remove(all=False)
 
             # Do something on modifiers
             for mod in clone_obj.modifiers:
@@ -780,6 +790,8 @@ class BakeStuffs(bpy.types.Operator):
 
                 # Set target image to polygon
                 self.set_polygon_image(o, m_idx)
+
+                #return {'FINISHED'}
 
                 # Bake!
                 print('Baking ' + self.target_img.name + '...')
