@@ -2038,10 +2038,15 @@ def recover_loss_of_active_paint_slot_index_hack(scene):
     if (mat.paint_active_slot == 0 and len(mat.texture_paint_slots) == 0
         and mat.ps_props.last_paint_active_slot > 0 and mat.ps_props.last_texture_paint_slots_len > 0):
 
+        if not mat.ps_props.data_loss:
+            mat.ps_props.data_loss = True
+
+    if mat.ps_props.data_loss and len(mat.texture_paint_slots) > 0:
+        mat.ps_props.data_loss = False
         if mat.paint_active_slot != mat.ps_props.last_paint_active_slot:
             mat.paint_active_slot = mat.ps_props.last_paint_active_slot
 
-    elif mat.paint_active_slot > 0 and len(mat.texture_paint_slots) > 0:
+    if not mat.ps_props.data_loss:
 
         # Remember last active paint slot
         if mat.ps_props.last_paint_active_slot != mat.paint_active_slot:
@@ -2101,6 +2106,7 @@ class MaterialPaintSlotProps(bpy.types.PropertyGroup):
     force_visible_influences = StringProperty(default='')
     last_paint_active_slot = IntProperty(default=0)
     last_texture_paint_slots_len = IntProperty(default=0)
+    data_loss = BoolProperty(default=False)
 
 class TextureExtras(bpy.types.PropertyGroup):
     channel = EnumProperty(
