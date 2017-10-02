@@ -547,9 +547,11 @@ class RefreshPaintSlots(bpy.types.Operator):
             if in_active_layer(obj):
                 bpy.ops.object.mode_set(mode=old_mode)
 
+        mat = get_active_material()
+
         # Do not update image editor hack
-        if obj and obj.type == 'MESH' and obj.active_material:
-            obj.active_material.paint_active_slot = obj.active_material.paint_active_slot
+        if obj and obj.type == 'MESH' and mat:
+            mat.paint_active_slot = mat.paint_active_slot
 
         # Bring back area type
         area.type = old_area_type

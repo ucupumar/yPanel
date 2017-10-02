@@ -490,6 +490,38 @@ class OpenPaintTextureFromFile(bpy.types.Operator, ImportHelper):
     def generate_paths(self):
         return (fn.name for fn in self.files), self.directory
 
+class ToggleUseNodes(bpy.types.Operator):
+    bl_idname = "material.yp_disable_use_nodes"
+    bl_label = "Disable Use Nodes"
+    bl_description = "Disable material nodes for this material"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    mat_name = StringProperty(name='Material Name', default='')
+
+    @classmethod
+    def poll(cls, context):
+        obj = context.object
+        return (obj and 
+                obj.active_material and 
+                obj.active_material.use_nodes)
+
+    def execute(self, context):
+        obj = context.object
+        if self.mat_name == '':
+            mat = obj.active_material
+        else: mat = bpy.data.materials.get(self.mat_name)
+
+        if not mat: 
+            self.report({'ERROR'}, "Material not found!")
+            return {'CANCELLED'}
+
+        #mat.use_nodes = not mat.use_nodes
+        mat.use_nodes = False
+
+        bpy.ops.material.yp_refresh_paint_slots()
+
+        return {'FINISHED'}
+
 class DuplicateMaterial(bpy.types.Operator):
     bl_idname = "material.yp_duplicate_to_non_node_material"
     bl_label = "Duplicate to non-node material"
@@ -1992,6 +2024,33 @@ def do_recover_area(scene):
                     return
 
 @persistent
+def recover_loss_of_active_paint_slot_index_hack(scene):
+
+    obj = bpy.context.object
+    if not obj: return
+
+    mat = get_active_material()
+    if not mat: return
+
+    #print('Active:', mat.paint_active_slot, 'Slots:', len(mat.texture_paint_images))
+
+    # Check loss of data
+    if (mat.paint_active_slot == 0 and len(mat.texture_paint_slots) == 0
+        and mat.ps_props.last_paint_active_slot > 0 and mat.ps_props.last_texture_paint_slots_len > 0):
+
+        if mat.paint_active_slot != mat.ps_props.last_paint_active_slot:
+            mat.paint_active_slot = mat.ps_props.last_paint_active_slot
+
+    elif mat.paint_active_slot > 0 and len(mat.texture_paint_slots) > 0:
+
+        # Remember last active paint slot
+        if mat.ps_props.last_paint_active_slot != mat.paint_active_slot:
+            mat.ps_props.last_paint_active_slot = mat.paint_active_slot
+
+        if mat.ps_props.last_texture_paint_slots_len != len(mat.texture_paint_slots):
+            mat.ps_props.last_texture_paint_slots_len = len(mat.texture_paint_slots)
+
+@persistent
 def update_node_mat_image_texpaint(scene):
     if scene.mo_props.halt_update: return
 
@@ -2040,6 +2099,8 @@ class ImagePaintSlotsProps(bpy.types.PropertyGroup):
 
 class MaterialPaintSlotProps(bpy.types.PropertyGroup):
     force_visible_influences = StringProperty(default='')
+    last_paint_active_slot = IntProperty(default=0)
+    last_texture_paint_slots_len = IntProperty(default=0)
 
 class TextureExtras(bpy.types.PropertyGroup):
     channel = EnumProperty(
@@ -2090,6 +2151,7 @@ def register():
     bpy.app.handlers.scene_update_pre.append(set_recover_area_enable)
     bpy.app.handlers.scene_update_pre.append(do_recover_area)
     bpy.app.handlers.scene_update_pre.append(update_node_mat_image_texpaint)
+    bpy.app.handlers.scene_update_pre.append(recover_loss_of_active_paint_slot_index_hack)
 
 def unregister():
     #bpy.types.VIEW3D_PT_view3d_shading.remove(draw_viewport_shade_switcher)
@@ -2099,3 +2161,4 @@ def unregister():
     bpy.app.handlers.scene_update_pre.remove(do_recover_area)
     bpy.app.handlers.scene_update_pre.remove(set_recover_area_enable)
     bpy.app.handlers.scene_update_pre.remove(update_node_mat_image_texpaint)
+    bpy.app.handlers.scene_update_pre.remove(recover_loss_of_active_paint_slot_index_hack)

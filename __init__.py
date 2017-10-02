@@ -691,11 +691,14 @@ class VIEW3D_PT_ypanel(bpy.types.Panel):
             col.alert = True
             col.label('Cannot access this material node paint slots!')
             if parent_mat == mat:
-                col.label('Duplicate this material to access them!')
-                col.operator('material.yp_duplicate_to_non_node_material', text='Duplicate Material!', icon='ERROR')
+                #col.label('Duplicate this material to access them!')
+                #col.operator('material.yp_duplicate_to_non_node_material', text='Duplicate Material!', icon='ERROR')
+                #col.label('Toggle Use Nodes to access paint slots!')
+                col.operator('material.yp_disable_use_nodes', text='Disable Use Nodes!', icon='ERROR')
             else:
-                col.label('Disable use nodes for this node material to access them!')
-                col.operator('material.yp_duplicate_to_non_node_material', text='Disable Use Nodes!', icon='ERROR')
+            #    col.label('Disable use nodes for this node material to access them!')
+            #    col.operator('material.yp_duplicate_to_non_node_material', text='Disable Use Nodes!', icon='ERROR')
+                col.operator('material.yp_disable_use_nodes', text='Disable Use Nodes!', icon='ERROR').mat_name = mat.name
             col.alert = False
 
         elif needs_update:
