@@ -584,6 +584,8 @@ def add_new_paint_slot(mat, img, influence, override_mode, blend_type = 'MIX'):
         slot.use_map_normal = True
         tex.use_normal_map = True
 
+    return slot
+
 class NewSlot(bpy.types.Operator):
     bl_idname = "paint.yp_add_slot_with_context"
     bl_label = "Add New Texture Paint Slot"
@@ -611,6 +613,15 @@ class NewSlot(bpy.types.Operator):
     #                 ('CUSTOM', 'Custom Color', ''),
     #                 ),
     #        default = 'CUSTOM')
+
+    influence_variations = EnumProperty(
+            name = 'Slot Type',
+            items = (('COLOR', 'Color', ''),
+                    ('RGB_TO_INTENSITY', 'RGB to Intensity', '')),
+            default = 'COLOR')
+
+    rgb_to_intensity_color = FloatVectorProperty(
+            name='RGB to Intensity Color', size=3, subtype='COLOR', default=(1.0,1.0,1.0), min=0.0, max=1.0)
 
     generated_type = EnumProperty(
             name = 'Generated Type',
@@ -663,6 +674,9 @@ class NewSlot(bpy.types.Operator):
         
         return (col[0], col[1], col[2], alpha)
 
+    def check(self, context):
+        return True
+
     def invoke(self, context, event):
         obj = context.object
         mat = get_active_material()
@@ -698,10 +712,14 @@ class NewSlot(bpy.types.Operator):
         c.label('Height')
         #c.label('Color Preset')
         #c.label('Custom Color')
-        c.label('Color')
-        c.label('')
-        c.label('Generated Type')
-        c.label('')
+        c.label('Type')
+        if self.influence_variations == 'COLOR':
+            c.label('Color')
+            c.label('')
+            c.label('Generated Type')
+            c.label('')
+        elif self.influence_variations == 'RGB_TO_INTENSITY':
+            c.label('Color')
         c.label('Blend')
 
         c = row.column()
@@ -710,10 +728,14 @@ class NewSlot(bpy.types.Operator):
         c.prop(self, 'height', text='')
         #c.prop(self, 'color_preset', expand=True)
         #c.prop(self, 'color_preset', text='')
-        c.prop(self, 'color', text='')
-        c.prop(self, 'alpha')
-        c.prop(self, 'generated_type', text='')
-        c.prop(self, 'hdr')
+        c.prop(self, 'influence_variations', text='')
+        if self.influence_variations == 'COLOR':
+            c.prop(self, 'color', text='')
+            c.prop(self, 'alpha')
+            c.prop(self, 'generated_type', text='')
+            c.prop(self, 'hdr')
+        elif self.influence_variations == 'RGB_TO_INTENSITY':
+            c.prop(self, 'rgb_to_intensity_color', text='')
         c.prop(self, 'blend_type', text='')
 
         #row = self.layout.row()
@@ -748,9 +770,16 @@ class NewSlot(bpy.types.Operator):
         #elif self.color_preset == 'NORMAL':
         #    img.generated_color = (0.5, 0.5, 1.0, 1.0)
         #else:
-        img.generated_color = self.color
+        if self.influence_variations == 'COLOR':
+            img.generated_color = self.color
+        elif self.influence_variations == 'RGB_TO_INTENSITY':
+            img.generated_color = (0.0, 0.0, 0.0, 1.0)
 
-        add_new_paint_slot(mat, img, self.type, override_mode, self.blend_type)
+        slot = add_new_paint_slot(mat, img, self.type, override_mode, self.blend_type)
+
+        if self.influence_variations == 'RGB_TO_INTENSITY':
+            slot.use_rgb_to_intensity = True
+            slot.color = self.rgb_to_intensity_color
 
         # Refresh paint slots
         bpy.ops.material.yp_refresh_paint_slots(all_materials=False)

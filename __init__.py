@@ -1544,6 +1544,8 @@ class TEXTURE_UL_custom_paint_slots(bpy.types.UIList):
         texpaint = item
         if self.layout_type in {'DEFAULT'}:
             if texpaint:
+                ts_idx = mat.texture_paint_slots[index].index
+                ts = mat.texture_slots[ts_idx]
                 row = layout.row(align=True)
                 if '_alpha_temp_' in texpaint.name:
                     #row = layout.row(align=True)
@@ -1557,8 +1559,9 @@ class TEXTURE_UL_custom_paint_slots(bpy.types.UIList):
                 if texpaint.packed_file:
                     row.label(text='', icon='PACKAGE')
                 #else: row.label(text='', icon='FILE_TICK')
+                if ts.use_rgb_to_intensity:
+                    row.prop(ts, 'color', text='', icon='COLOR')
                 if mat.texture_paint_slots:
-                    ts_idx = mat.texture_paint_slots[index].index
                     row.prop(mat, 'use_textures', text='', index=ts_idx)
 
 def set_keybind():
