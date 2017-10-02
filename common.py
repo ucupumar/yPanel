@@ -8,6 +8,23 @@ possible_dir_names = {
         'yPanel-master'
         }
 
+blend_type_items = (("MIX", "Mix", ""),
+	             ("ADD", "Add", ""),
+	             ("SUBTRACT", "Subtract", ""),
+	             ("MULTIPLY", "Multiply", ""),
+	             ("SCREEN", "Screen", ""),
+	             ("OVERLAY", "Overlay", ""),
+	             ("DIFFERENCE", "Difference", ""),
+	             ("DIVIDE", "Divide", ""),
+	             ("DARKEN", "Darken", ""),
+	             ("LIGHTEN", "Lighten", ""),
+	             ("HUE", "Hue", ""),
+	             ("SATURATION", "Saturation", ""),
+	             ("VALUE", "Value", ""),
+	             ("COLOR", "Color", ""),
+	             ("SOFT_LIGHT", "Soft Light", ""),
+	             ("LINEAR_LIGHT", "Linear Light", ""))
+
 def get_active_material():
     mat = bpy.context.object.active_material
     if mat and mat.use_nodes:

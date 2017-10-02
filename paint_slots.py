@@ -93,23 +93,6 @@ influence_items = (
                  ('warp', 'Warp', ''),
                  ('displacement', 'Displacement', ''))
 
-blend_type_items = (("MIX", "Mix", ""),
-	             ("ADD", "Add", ""),
-	             ("SUBTRACT", "Subtract", ""),
-	             ("MULTIPLY", "Multiply", ""),
-	             ("SCREEN", "Screen", ""),
-	             ("OVERLAY", "Overlay", ""),
-	             ("DIFFERENCE", "Difference", ""),
-	             ("DIVIDE", "Divide", ""),
-	             ("DARKEN", "Darken", ""),
-	             ("LIGHTEN", "Lighten", ""),
-	             ("HUE", "Hue", ""),
-	             ("SATURATION", "Saturation", ""),
-	             ("VALUE", "Value", ""),
-	             ("COLOR", "Color", ""),
-	             ("SOFT_LIGHT", "Soft Light", ""),
-	             ("LINEAR_LIGHT", "Linear Light", ""))
-
 class PackImage(bpy.types.Operator):
     bl_idname = "paint.yp_pack_image"
     bl_label = "Pack image into blend file"
