@@ -25,34 +25,6 @@ shade_dict = {
         'RENDERED': 'Rendered'
         }
 
-class ToggleExtraHeader(bpy.types.Operator):
-    bl_idname = "view3d.yp_toggle_extra_header"
-    bl_label = "Toggle Extra Header"
-    bl_description = "Toggle Extra Header"
-
-    #header = EnumProperty(
-    #    name = 'Header',
-    #    items = (('GLOBAL', "Global", ""),
-    #             ('VIEWPORT', "Viewport", "")),
-    #    default = 'GLOBAL')
-
-    @classmethod
-    def poll(cls, context):
-        return True
-
-    def execute(self, context):
-        scene = context.scene
-        settings = scene.yp_props
-
-        #if self.header == 'GLOBAL':
-        #    settings.global_extra_header = not settings.global_extra_header
-        #elif self.header == 'VIEWPORT':
-        #    settings.viewport_extra_header = not settings.viewport_extra_header
-
-        settings.global_extra_header = not settings.global_extra_header
-
-        return {'FINISHED'}
-
 class ToggleWire(bpy.types.Operator):
     bl_idname = "view3d.yp_toggle_display_wire"
     bl_label = "Toggle Display Wire"
@@ -98,11 +70,11 @@ class ToggleWire(bpy.types.Operator):
         return {'FINISHED'}
 
 #PANELS
-def mode_switcher_panel(self):
+def mode_switcher_panel(layout):
 
     obj = bpy.context.object
 
-    row = self.layout.row(align=True)
+    row = layout.row(align=True)
     
     if not obj or obj.mode == 'OBJECT':
         row.alert = True
@@ -222,58 +194,95 @@ def viewport_header_addition(self, context):
         if space.region_3d.view_perspective == 'CAMERA':
             layout.prop(space.fx_settings, "use_dof", text='DOF')
 
-        layout.prop(scene.render, 'use_simplify', text='Simplify')
+        row = layout.row(align=True)
+        #row.prop(scene.render, 'use_simplify', text='', icon='MOD_DECIM')
+        row.prop(scene.render, 'use_simplify', text='Simplify')
         if scene.render.use_simplify:
-            layout.prop(scene.render, 'simplify_subdivision', text='Level')
+            row.prop(scene.render, 'simplify_subdivision', text='Level')
         
         row = layout.row()
         row.enabled = not space.show_only_render
         #if not space.show_only_render:
         row.operator('view3d.yp_toggle_display_wire', text='Wire')
 
-        #if context.mode in {'OBJECT', 'EDIT'}:
-        #    layout.prop(toolsettings, "snap_element", icon_only=True, expand=True)
-        layout.prop(scene, "frame_current", text="")
+        layout.prop(scene, "frame_current", text="Frame")
 
-def global_header_addition(self, context):
+def modified_global_header(self, context):
+    layout = self.layout
+
+    window = context.window
     scene = context.scene
-    settings = scene.yp_props
+    rd = scene.render
 
-    row = self.layout.row()
+    row = layout.row(align=True)
+    row.template_header()
 
-    if not settings.global_extra_header:
-        #row.operator('view3d.yp_toggle_extra_header', icon='DOWNARROW_HLT', text='', emboss=False).header = 'GLOBAL'
-        row.operator('view3d.yp_toggle_extra_header', icon='DOWNARROW_HLT', text='', emboss=False)
-    else: 
-        #row.operator('view3d.yp_toggle_extra_header', icon='RIGHTARROW', text='', emboss=False).header = 'GLOBAL'
-        row.operator('view3d.yp_toggle_extra_header', icon='RIGHTARROW', text='', emboss=False)
-        #row.template_layers()
-        #scene = context.scene
-        #row.prop(scene, 'layers', text='')
-        #col = row.column(align=True)
-        #col.prop(scene, 'layers', index=0, toggle=True, text='')
-        #col.prop(scene, 'layers', index=10, toggle=True, text='')
-        mode_switcher_panel(self)
+    bpy.types.INFO_MT_editor_menus.draw_collapsible(context, layout)
 
-        obj = context.object
-        row = self.layout.row()
-        if obj:
-            #row = self.layout.row(align=True)
-            row.label("Mode: " + mode_dict[obj.mode])
-        else:
-            row.label("No object selected!")
+    if window.screen.show_fullscreen:
+        layout.operator("screen.back_to_previous", icon='SCREEN_BACK', text="Back to Previous")
+        layout.separator()
+    else:
+        layout.template_ID(context.window, "screen", new="screen.new", unlink="screen.delete")
+        layout.template_ID(context.screen, "scene", new="scene.new", unlink="scene.delete")
 
-class SceneYPanelSetting(bpy.types.PropertyGroup):
-    global_extra_header = BoolProperty(default=True)
-    #viewport_extra_header = BoolProperty(default=True)
+    layout.separator()
+
+    if rd.has_multiple_engines:
+        layout.prop(rd, "engine", text="")
+
+    layout.separator()
+
+    layout.template_running_jobs()
+
+    layout.template_reports_banner()
+
+    row = layout.row(align=True)
+
+    if bpy.app.autoexec_fail is True and bpy.app.autoexec_fail_quiet is False:
+        row.label("Auto-run disabled", icon='ERROR')
+        if bpy.data.is_saved:
+            props = row.operator("wm.revert_mainfile", icon='SCREEN_BACK', text="Reload Trusted")
+            props.use_scripts = True
+
+        row.operator("script.autoexec_warn_clear", text="Ignore")
+
+        # include last so text doesn't push buttons out of the header
+        row.label(bpy.app.autoexec_fail_message)
+        return
+
+    mode_switcher_panel(row)
+
+    obj = context.object
+    if obj:
+        row.label(mode_dict[obj.mode] + ' Mode')
+    else:
+        row.label("Object Mode")
+
+    row.prop(scene.render, 'use_simplify', text='', icon='MOD_DECIM')
+    if scene.render.use_simplify:
+        row.prop(scene.render, 'simplify_subdivision', text='Level')
+
+    row.separator()
+
+    row.operator("wm.splash", text="", icon='BLENDER', emboss=False)
+    row.label(text=scene.statistics(), translate=False)
+
+original_global_header = bpy.types.INFO_HT_header.draw
+
+#class SceneYPanelSetting(bpy.types.PropertyGroup):
+#    global_extra_header = BoolProperty(default=True)
+#    viewport_extra_header = BoolProperty(default=True)
 
 def register():
-    bpy.types.Scene.yp_props = PointerProperty(type=SceneYPanelSetting)
+    #bpy.types.Scene.yp_props = PointerProperty(type=SceneYPanelSetting)
 
     bpy.types.VIEW3D_HT_header.append(viewport_header_addition)
-    bpy.types.INFO_HT_header.append(global_header_addition)
+    bpy.types.INFO_HT_header.remove(original_global_header)
+    bpy.types.INFO_HT_header.prepend(modified_global_header)
 
 def unregister():
     # Remove extra panels
     bpy.types.VIEW3D_HT_header.remove(viewport_header_addition)
-    bpy.types.INFO_HT_header.remove(global_header_addition)
+    bpy.types.INFO_HT_header.remove(modified_global_header)
+    bpy.types.INFO_HT_header.prepend(original_global_header)

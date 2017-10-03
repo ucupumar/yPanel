@@ -126,7 +126,7 @@ class VIEW3D_PT_ypanel(bpy.types.Panel):
     
         row = self.layout.row(align=True)
     
-        header_extras.mode_switcher_panel(self)
+        header_extras.mode_switcher_panel(self.layout)
 
     def shading_panel(self):
 
