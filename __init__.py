@@ -149,7 +149,7 @@ class VIEW3D_PT_ypanel(bpy.types.Panel):
         #row = box.row(align=True)
         row = self.layout.row(align=True)
         row.prop(space, 'viewport_shade', text='', expand=True)
-        row = row.row()
+        row.separator()
         if self.is_collapsed('shading_setting'):
             row.operator('view3d.yp_panel_toggle', icon='SCRIPTWIN', text='').panel = 'shading_setting'
         else:
@@ -1569,7 +1569,6 @@ def set_keybind():
      
     f3_keybind_found = False
     f4_keybind_found = False
-    f7_keybind_found = False
     
     # Object non modal keybinds
     # Get object non modal keymaps
@@ -1596,14 +1595,6 @@ def set_keybind():
                 # Deactivate other F4 keybind
                 kmi.active = False
 
-        if kmi.type == 'F7':
-            if kmi.idname == 'wm.context_toggle' and kmi.properties.data_path == 'scene.render.use_simplify':
-                f7_keybind_found = True
-                kmi.active = True
-            else:
-                # Deactivate other F7 keybind
-                kmi.active = False
-    
     # Set F3 Keybind
     if not f3_keybind_found:
         new_shortcut = km.keymap_items.new('object.mode_set', 'F3', 'PRESS')
@@ -1616,12 +1607,8 @@ def set_keybind():
         new_shortcut.properties.mode = 'TEXTURE_PAINT'
         new_shortcut.properties.toggle = True
 
-    # Set F7 Keybind
-    if not f7_keybind_found:
-        new_shortcut = km.keymap_items.new('wm.context_toggle', 'F7', 'PRESS')
-        new_shortcut.properties.data_path = 'scene.render.use_simplify'
-
     f4_keybind_found = False
+    f7_keybind_found = False
     z_keybind_found = False
     d_keybind_found = False
 
@@ -1639,6 +1626,14 @@ def set_keybind():
                 kmi.active = True
             else:
                 # Deactivate other F4 keybind
+                kmi.active = False
+
+        if kmi.type == 'F7':
+            if kmi.idname == 'scene.yp_use_simplify_toggle':
+                f7_keybind_found = True
+                kmi.active = True
+            else:
+                # Deactivate other F7 keybind
                 kmi.active = False
 
         # Search for Shift Alt Z keybind
@@ -1662,6 +1657,10 @@ def set_keybind():
     # Set F4 Keybind
     if not f4_keybind_found:
         new_shortcut = km.keymap_items.new('paint.yp_image_paint_toggle', 'F4', 'PRESS')
+
+    # Set F7 Keybind
+    if not f7_keybind_found:
+        new_shortcut = km.keymap_items.new('scene.yp_use_simplify_toggle', 'F7', 'PRESS')
 
     # Set Shift Alt Z keybind
     if not z_keybind_found:
@@ -1720,6 +1719,20 @@ class ToggleOnlyRender(bpy.types.Operator):
     def execute(self, context):
         space = context.space_data
         space.show_only_render = not space.show_only_render
+        return {'FINISHED'}
+
+class ToggleUseSimplify(bpy.types.Operator):
+    bl_idname = "scene.yp_use_simplify_toggle"
+    bl_label = "Toggle Use Simplify"
+    bl_description = "Toggle Use Simplify"
+
+    @classmethod
+    def poll(cls, context):
+        return context.area.type == 'VIEW_3D'
+
+    def execute(self, context):
+        scene = context.scene
+        scene.render.use_simplify = not scene.render.use_simplify
         return {'FINISHED'}
 
 # PROPS
