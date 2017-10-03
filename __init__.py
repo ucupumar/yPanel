@@ -1567,12 +1567,10 @@ class TEXTURE_UL_custom_paint_slots(bpy.types.UIList):
 def set_keybind():
     wm = bpy.context.window_manager
      
-    #km = wm.keyconfigs.default.keymaps['Object Non-modal']
-        
     f3_keybind_found = False
     f4_keybind_found = False
-    z_keybind_found = False
     
+    # Object non modal keybinds
     # Get object non modal keymaps
     km = wm.keyconfigs.addon.keymaps.get('Object Non-modal')
     if not km:
@@ -1608,34 +1606,79 @@ def set_keybind():
         new_shortcut = km.keymap_items.new('object.mode_set', 'F4', 'PRESS')
         new_shortcut.properties.mode = 'TEXTURE_PAINT'
         new_shortcut.properties.toggle = True
-    
-    # Get 3D View keymaps 
-    # BLENDER BUG! It will be failed if using addon keyconfigs
-    km3d = wm.keyconfigs.addon.keymaps.get('3D View')
-    #km3d = wm.keyconfigs.default.keymaps.get('3D View')
-    if not km3d:
-        km3d = wm.keyconfigs.addon.keymaps.new('3D View')
-        #km3d = wm.keyconfigs.default.keymaps.new('3D View')
+
+    f4_keybind_found = False
+    z_keybind_found = False
+
+    # Mode change keybinds need Window keymaps
+    km = wm.keyconfigs.addon.keymaps.get('Window')
+    if not km:
+        km = wm.keyconfigs.addon.keymaps.new('Window')
+
+    for kmi in km.keymap_items:
         
-    # Search for Shift Alt Z keybind
-    #for kmi in km3d.keymap_items:
-    #    
-    #    if kmi.type == 'Z' and kmi.shift and kmi.alt:
-    #        #if kmi.idname == 'wm.context_toggle_enum' and hasattr(kmi, 'properties') and hasattr(kmi.properties, 'data_path') and kmi.properties.data_path == 'space_data.viewport_shade':
-    #        if kmi.idname == 'wm.context_toggle_enum' and kmi.properties.data_path == 'space_data.viewport_shade':
-    #            z_keybind_found = True
-    #            kmi.active = True
-    #        else:
-    #            # Deactivate other Shift Alt Z keybind
-    #            kmi.active = False
-    #
-    ## Set Shift Alt Z keybind
-    #if not z_keybind_found:
-    #    new_shortcut = km3d.keymap_items.new('wm.context_toggle_enum', 'Z', 'PRESS', shift=True, alt=True)
-    #    new_shortcut.properties.data_path = 'space_data.viewport_shade'
-    #    #new_shortcut.properties.value_1 = 'TEXTURED'
-    #    new_shortcut.properties.value_1 = 'SOLID'
-    #    new_shortcut.properties.value_2 = 'MATERIAL'
+        # Search for F4 keybind
+        if kmi.type == 'F4':
+            if kmi.idname == 'paint.yp_image_paint_toggle':
+                f4_keybind_found = True
+                kmi.active = True
+            else:
+                # Deactivate other F4 keybind
+                kmi.active = False
+
+        # Search for Shift Alt Z keybind
+        if kmi.type == 'Z' and kmi.shift and kmi.alt:
+            if kmi.idname == 'view3d.yp_material_shade_toggle':
+                z_keybind_found = True
+                kmi.active = True
+            else:
+                # Deactivate other Shift Alt Z keybind
+                kmi.active = False
+
+    # Set F4 Keybind
+    if not f4_keybind_found:
+        new_shortcut = km.keymap_items.new('paint.yp_image_paint_toggle', 'F4', 'PRESS')
+
+    # Set Shift Alt Z keybind
+    if not z_keybind_found:
+        new_shortcut = km.keymap_items.new('view3d.yp_material_shade_toggle', 'Z', 'PRESS', shift=True, alt=True)
+
+# OPERATORS for keybinds
+class ToggleImagePaintMode(bpy.types.Operator):
+    bl_idname = "paint.yp_image_paint_toggle"
+    bl_label = "Toggle Image Paint Mode"
+    bl_description = "Toggle Image Paint Mode"
+
+    @classmethod
+    def poll(cls, context):
+        return context.area.type == 'IMAGE_EDITOR'
+    
+    def execute(self, context):
+        space = context.space_data
+        if space.mode == 'VIEW':
+            space.mode = 'PAINT'
+        elif space.mode == 'PAINT':
+            space.mode = 'VIEW'
+        elif space.mode == 'MASK':
+            space.mode = 'VIEW'
+        return {'FINISHED'}
+
+class ToggleMaterialShade(bpy.types.Operator):
+    bl_idname = "view3d.yp_material_shade_toggle"
+    bl_label = "Toggle Material Shade View"
+    bl_description = "Toggle Material Shade View"
+
+    @classmethod
+    def poll(cls, context):
+        return context.area.type == 'VIEW_3D'
+
+    def execute(self, context):
+        space = context.space_data
+        if space.viewport_shade != 'MATERIAL':
+            space.viewport_shade = 'MATERIAL'
+        else:
+            space.viewport_shade = 'SOLID'
+        return {'FINISHED'}
 
 # PROPS
 class ScreenYPanelProps(bpy.types.PropertyGroup):
