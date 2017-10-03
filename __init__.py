@@ -1569,6 +1569,7 @@ def set_keybind():
      
     f3_keybind_found = False
     f4_keybind_found = False
+    f7_keybind_found = False
     
     # Object non modal keybinds
     # Get object non modal keymaps
@@ -1594,6 +1595,14 @@ def set_keybind():
             else:
                 # Deactivate other F4 keybind
                 kmi.active = False
+
+        if kmi.type == 'F7':
+            if kmi.idname == 'wm.context_toggle' and kmi.properties.data_path == 'scene.render.use_simplify':
+                f7_keybind_found = True
+                kmi.active = True
+            else:
+                # Deactivate other F7 keybind
+                kmi.active = False
     
     # Set F3 Keybind
     if not f3_keybind_found:
@@ -1607,8 +1616,14 @@ def set_keybind():
         new_shortcut.properties.mode = 'TEXTURE_PAINT'
         new_shortcut.properties.toggle = True
 
+    # Set F7 Keybind
+    if not f7_keybind_found:
+        new_shortcut = km.keymap_items.new('wm.context_toggle', 'F7', 'PRESS')
+        new_shortcut.properties.data_path = 'scene.render.use_simplify'
+
     f4_keybind_found = False
     z_keybind_found = False
+    d_keybind_found = False
 
     # Mode change keybinds need Window keymaps
     km = wm.keyconfigs.addon.keymaps.get('Window')
@@ -1635,6 +1650,15 @@ def set_keybind():
                 # Deactivate other Shift Alt Z keybind
                 kmi.active = False
 
+        # Search for D keybind
+        if kmi.type == 'D':
+            if kmi.idname == 'view3d.yp_only_render_toggle':
+                d_keybind_found = True
+                kmi.active = True
+            else:
+                # Deactivate other F7 keybind
+                kmi.active = False
+
     # Set F4 Keybind
     if not f4_keybind_found:
         new_shortcut = km.keymap_items.new('paint.yp_image_paint_toggle', 'F4', 'PRESS')
@@ -1642,6 +1666,10 @@ def set_keybind():
     # Set Shift Alt Z keybind
     if not z_keybind_found:
         new_shortcut = km.keymap_items.new('view3d.yp_material_shade_toggle', 'Z', 'PRESS', shift=True, alt=True)
+
+    # Set D Keybind
+    if not d_keybind_found:
+        new_shortcut = km.keymap_items.new('view3d.yp_only_render_toggle', 'D', 'PRESS')
 
 # OPERATORS for keybinds
 class ToggleImagePaintMode(bpy.types.Operator):
@@ -1678,6 +1706,20 @@ class ToggleMaterialShade(bpy.types.Operator):
             space.viewport_shade = 'MATERIAL'
         else:
             space.viewport_shade = 'SOLID'
+        return {'FINISHED'}
+
+class ToggleOnlyRender(bpy.types.Operator):
+    bl_idname = "view3d.yp_only_render_toggle"
+    bl_label = "Toggle Only Render View"
+    bl_description = "Toggle Only Render View"
+
+    @classmethod
+    def poll(cls, context):
+        return context.area.type == 'VIEW_3D'
+
+    def execute(self, context):
+        space = context.space_data
+        space.show_only_render = not space.show_only_render
         return {'FINISHED'}
 
 # PROPS

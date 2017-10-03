@@ -125,7 +125,6 @@ def mode_switcher_panel(layout):
 
 def viewport_header_addition(self, context):
     scene = context.scene
-    settings = scene.yp_props
     space = context.space_data
     gs = scene.game_settings 
     toolsettings = context.tool_settings
