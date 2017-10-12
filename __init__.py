@@ -470,7 +470,8 @@ class VIEW3D_PT_ypanel(bpy.types.Panel):
         col.template_list("MATERIAL_UL_custom_matslots", "", obj, "material_slots", obj, "active_material_index", rows=4)
         #col.template_list("MATERIAL_UL_matslots", "", obj, "material_slots", obj, "active_material_index", rows=3)
         col = row.column(align=True)
-        col.operator("object.material_slot_add", icon='ZOOMIN', text="")
+        #col.operator("object.material_slot_add", icon='ZOOMIN', text="")
+        col.operator("material.yp_new", icon='ZOOMIN', text="")
         col.operator("object.material_slot_remove", icon='ZOOMOUT', text="")
         #if len(obj.material_slots) > 1:
 
@@ -487,7 +488,7 @@ class VIEW3D_PT_ypanel(bpy.types.Panel):
 
         #split = box.split(percentage=0.8)
         row = box.row()
-        row.template_ID(obj, "active_material", new="material.new")
+        row.template_ID(obj, "active_material", new="material.yp_new")
 
         if mat:
             col = box.column()

@@ -2068,6 +2068,31 @@ class PaintSlotMove(bpy.types.Operator):
 
         return {'FINISHED'}
 
+class NewMaterial(bpy.types.Operator):
+    bl_idname = "material.yp_new"
+    bl_label = "Add new material"
+    bl_description = "Add new material"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    @classmethod
+    def poll(cls, context):
+        return context.object
+
+    def execute(self, context):
+        obj = context.object
+
+        mat = bpy.data.materials.new(obj.name)
+
+        if len(obj.material_slots) > 0 and not obj.material_slots[obj.active_material_index].material:
+            obj.data.materials[obj.active_material_index] = mat
+        else:
+            obj.data.materials.append(mat)
+            obj.active_material_index = len(obj.data.materials)-1
+
+        # Use full diffuse intensity for new material
+        mat.diffuse_intensity = 1.0
+        return {'FINISHED'}
+
 # UPDATE HANDLERS
 @persistent
 def set_recover_area_enable(scene):
