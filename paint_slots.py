@@ -557,6 +557,79 @@ class DuplicateMaterial(bpy.types.Operator):
 
         return {'FINISHED'}
 
+class MakeIndependentMaterialCopy(bpy.types.Operator):
+    bl_idname = "material.yp_make_independent_copy"
+    bl_label = "Make independent copy"
+    bl_description = "Make independent copy of this material with independent textures and paint slots"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    @classmethod
+    def poll(cls, context):
+        return context.object.active_material
+
+    def execute(self, context):
+        obj = context.object
+        source_mat = obj.active_material
+        idx = obj.active_material_index
+
+        # Copy material
+        mat = obj.material_slots[idx].material = source_mat.copy()
+
+        # Dict to remember which textures already copied
+        copied_images = {}
+        copied_textures = {}
+        # Copy textures
+        for ts in mat.texture_slots:
+            if ts and ts.texture:
+                source_tex = ts.texture
+                if source_tex.name in copied_textures.keys():
+                    ts.texture = copied_textures[source_tex.name]
+                else:
+                    copied_tex = ts.texture.copy()
+                    ts.texture = copied_tex
+                    copied_textures[source_tex.name] = copied_tex
+
+                # Copy images
+                if hasattr(ts.texture, 'image') and ts.texture.image:
+                    source_img = ts.texture.image
+
+                    # If source image already copied, use copied image
+                    if source_img.name in copied_images.keys():
+                        ts.texture.image = copied_images[source_img.name]
+
+                    # If not, create new copy
+                    else:
+                        copied_img = source_img.copy()
+                        copied_images[source_img.name] = copied_img
+                        ts.texture.image = copied_img
+
+        # Check material nodes
+        if mat.node_tree:
+            # Dict to remember already copied materials
+            copied_materials = {}
+            for node in mat.node_tree.nodes:
+                if node.type == 'MATERIAL' and node.material:
+                    if node.material == source_mat:
+                        node.material = mat
+                    elif node.material.name in copied_materials.keys():
+                        #node.material 
+                        node.material = copied_materials[node.material.name]
+                    else:
+                        copied_mat = node.material.copy()
+                        copied_materials[node.material.name] = copied_mat
+                        node.material = copied_mat
+                elif node.type == 'TEXTURE' and node.texture:
+                    if node.texture.name in copied_textures:
+                        node.texture = copied_textures[node.texture.name]
+                    else:
+                        copied_tex = node.texture.copy()
+                        copied_textures[node.texture.name] = copied_tex
+                        node.texture = copied_tex
+
+        bpy.ops.material.yp_refresh_paint_slots()
+
+        return {'FINISHED'}
+
 def add_new_paint_slot(mat, img, influence, override_mode, blend_type = 'MIX'):
 
     tex = bpy.data.textures.new(img.name, 'IMAGE')
@@ -2150,8 +2223,16 @@ def draw_viewport_shade_switcher(self, context):
     row = self.layout.row()
     row.prop(space, 'viewport_shade', expand=True, icon_only=True)
 
+class MaterialSpecialMenu(bpy.types.Menu):
+    bl_idname = "MATERIAL_MT_yp_materials_specials"
+    bl_label = "Material Special Menu"
+
+    def draw(self, context):
+        layout = self.layout
+        layout.operator("material.yp_make_independent_copy", text="Make Independent Copy", icon='MATERIAL')
+
 class PaintTextureSpecialMenu(bpy.types.Menu):
-    bl_idname = "MATERIAL_MT_texture_paint_specials"
+    bl_idname = "MATERIAL_MT_yp_texture_paint_specials"
     bl_label = "Texture Paint Special Menu"
 
     def draw(self, context):

@@ -464,15 +464,20 @@ class VIEW3D_PT_ypanel(bpy.types.Panel):
         box = col.box()
         row = box.row()
         col = row.column()
-        col.template_list("MATERIAL_UL_custom_matslots", "", obj, "material_slots", obj, "active_material_index", rows=3)
+        #if len(obj.material_slots) < 2:
+        #    col.template_list("MATERIAL_UL_custom_matslots", "", obj, "material_slots", obj, "active_material_index", rows=3)
+        #else:
+        col.template_list("MATERIAL_UL_custom_matslots", "", obj, "material_slots", obj, "active_material_index", rows=4)
         #col.template_list("MATERIAL_UL_matslots", "", obj, "material_slots", obj, "active_material_index", rows=3)
         col = row.column(align=True)
         col.operator("object.material_slot_add", icon='ZOOMIN', text="")
         col.operator("object.material_slot_remove", icon='ZOOMOUT', text="")
-        if len(obj.material_slots) > 1:
+        #if len(obj.material_slots) > 1:
 
-            col.operator("object.material_slot_move", icon='TRIA_UP', text="").direction = 'UP'
-            col.operator("object.material_slot_move", icon='TRIA_DOWN', text="").direction = 'DOWN'
+        col.operator("object.material_slot_move", icon='TRIA_UP', text="").direction = 'UP'
+        col.operator("object.material_slot_move", icon='TRIA_DOWN', text="").direction = 'DOWN'
+
+        col.menu("MATERIAL_MT_yp_materials_specials", icon='DOWNARROW_HLT', text='')
 
         if obj.mode == 'EDIT':
             row = box.row(align=True)
@@ -683,7 +688,7 @@ class VIEW3D_PT_ypanel(bpy.types.Panel):
 
         col.operator("paint.yp_slot_move", text='', icon='TRIA_UP').type = 'UP'
         col.operator("paint.yp_slot_move", text='', icon='TRIA_DOWN').type = 'DOWN'
-        col.menu("MATERIAL_MT_texture_paint_specials", icon='DOWNARROW_HLT', text='')
+        col.menu("MATERIAL_MT_yp_texture_paint_specials", icon='DOWNARROW_HLT', text='')
 
         #if bpy.context.mode == 'PAINT_TEXTURE' and parent_mat == mat:
         if bpy.context.mode == 'PAINT_TEXTURE' and parent_mat and mat.use_nodes:
