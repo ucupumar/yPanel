@@ -2230,10 +2230,10 @@ def update_node_mat_image_texpaint(scene):
 
     # Get texture slot
     ts = node_mat.texture_slots[node_mat.texture_paint_slots[node_mat.paint_active_slot].index]
-    #ts.uv_layer
     
     if obj.mode != 'TEXTURE_PAINT': return
 
+    # This code only works when paint slots subpanel is uncollapsed
     screen = bpy.context.screen
     yp_ids = [int(i[2:]) for i in screen.yp_props.uncollapsed_paint_slots.split()]
     if not yp_ids: return
