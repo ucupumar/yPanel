@@ -635,7 +635,24 @@ def add_new_paint_slot(mat, img, influence, override_mode, blend_type = 'MIX'):
     tex = bpy.data.textures.new(img.name, 'IMAGE')
     tex.image = img
 
-    slot = mat.texture_slots.add()
+    slot = None
+    counter = 0
+    for i, ts in enumerate(mat.texture_slots):
+        if ts:
+            if not ts.texture:
+                # Reset previous slot configuration by create new slot
+                slot = mat.texture_slots.create(i)
+                break
+            if ts.texture:
+                counter += 1
+
+    # Cannot add more than 18 textures
+    if counter > 17:
+        return False
+
+    if not slot:
+        slot = mat.texture_slots.add()
+
     slot.texture = tex
     slot.texture_coords = 'UV'
     slot.use_map_color_diffuse = False
@@ -849,6 +866,10 @@ class NewSlot(bpy.types.Operator):
             img.generated_color = (0.0, 0.0, 0.0, 1.0)
 
         slot = add_new_paint_slot(mat, img, self.type, override_mode, self.blend_type)
+
+        if not slot:
+            self.report({'ERROR'}, "Maximum number of textures added is 18!")
+            return {'CANCELLED'}
 
         if self.influence_variations == 'RGB_TO_INTENSITY':
             slot.use_rgb_to_intensity = True
@@ -1130,7 +1151,11 @@ class AddSlotWithAvailableImage(bpy.types.Operator):
         mat = get_active_material()
         img = bpy.data.images.get(self.image_name)
 
-        add_new_paint_slot(mat, img, self.influence, override_mode, self.blend_type)
+        slot = add_new_paint_slot(mat, img, self.influence, override_mode, self.blend_type)
+
+        if not slot:
+            self.report({'ERROR'}, "Maximum number of textures added is 18!")
+            return {'CANCELLED'}
 
         # Refresh paint slots
         bpy.ops.material.yp_refresh_paint_slots(all_materials=False)
