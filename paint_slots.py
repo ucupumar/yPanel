@@ -630,7 +630,7 @@ class MakeIndependentMaterialCopy(bpy.types.Operator):
 
         return {'FINISHED'}
 
-def add_new_paint_slot(mat, img, influence, override_mode, blend_type = 'MIX'):
+def add_new_paint_slot(mat, img, influence, override_mode, blend_type = 'MIX', uv_layer=''):
 
     tex = bpy.data.textures.new(img.name, 'IMAGE')
     tex.image = img
@@ -657,6 +657,7 @@ def add_new_paint_slot(mat, img, influence, override_mode, blend_type = 'MIX'):
     slot.texture_coords = 'UV'
     slot.use_map_color_diffuse = False
     slot.blend_type = blend_type
+    slot.uv_layer = uv_layer
 
     if influence == 'normal':
         tex.use_normal_map = True
@@ -725,6 +726,9 @@ class NewSlot(bpy.types.Operator):
         items = blend_type_items,
         default = 'MIX')
 
+    uv_layer = StringProperty(name = 'UV Layer', default = '')
+    uv_layer_coll = CollectionProperty(type=bpy.types.PropertyGroup)
+
     @classmethod
     def poll(cls, context):
         return context.area.type =='VIEW_3D'
@@ -792,6 +796,14 @@ class NewSlot(bpy.types.Operator):
 
         self.name = mat.name + posfix
 
+        # Update uv layer name
+        self.uv_layer_coll.clear()
+        for uv in obj.data.uv_textures:
+            self.uv_layer_coll.add().name = uv.name
+
+        # Use active uv layer name by default
+        self.uv_layer = obj.data.uv_textures.active.name
+
         return context.window_manager.invoke_props_dialog(self)
 
     def draw(self, context):
@@ -811,6 +823,7 @@ class NewSlot(bpy.types.Operator):
         elif self.influence_variations == 'RGB_TO_INTENSITY':
             c.label('Color')
         c.label('Blend')
+        c.label('UV Layer')
 
         c = row.column()
         c.prop(self, 'name', text='')
@@ -827,6 +840,7 @@ class NewSlot(bpy.types.Operator):
         elif self.influence_variations == 'RGB_TO_INTENSITY':
             c.prop(self, 'rgb_to_intensity_color', text='')
         c.prop(self, 'blend_type', text='')
+        c.prop_search(self, "uv_layer", self, "uv_layer_coll", text='', icon='GROUP_UVS')
 
         #row = self.layout.row()
         #c = row.column()
@@ -844,6 +858,7 @@ class NewSlot(bpy.types.Operator):
         #c.prop(self, 'blend_type', text='')
 
     def execute(self, context):
+        obj = context.object
         mat = get_active_material()
         override_mode = context.scene.mo_props.override_mode
 
@@ -865,7 +880,7 @@ class NewSlot(bpy.types.Operator):
         elif self.influence_variations == 'RGB_TO_INTENSITY':
             img.generated_color = (0.0, 0.0, 0.0, 1.0)
 
-        slot = add_new_paint_slot(mat, img, self.type, override_mode, self.blend_type)
+        slot = add_new_paint_slot(mat, img, self.type, override_mode, self.blend_type, self.uv_layer)
 
         if not slot:
             self.report({'ERROR'}, "Maximum number of textures added is 18!")
@@ -874,6 +889,12 @@ class NewSlot(bpy.types.Operator):
         if self.influence_variations == 'RGB_TO_INTENSITY':
             slot.use_rgb_to_intensity = True
             slot.color = self.rgb_to_intensity_color
+
+        # Set object active uv map to the inputed value
+        for i, uv in enumerate(obj.data.uv_textures):
+            if uv.name == self.uv_layer:
+                obj.data.uv_textures.active_index = i
+                break
 
         # Refresh paint slots
         bpy.ops.material.yp_refresh_paint_slots(all_materials=False)
@@ -1127,15 +1148,30 @@ class AddSlotWithAvailableImage(bpy.types.Operator):
     image_name = StringProperty(name="Image")
     image_coll = CollectionProperty(type=bpy.types.PropertyGroup)
 
+    uv_layer = StringProperty(name = 'UV Layer', default = '')
+    uv_layer_coll = CollectionProperty(type=bpy.types.PropertyGroup)
+
     @classmethod
     def poll(cls, context):
         return True
 
     def invoke(self, context, event):
+        obj = context.object
+
+        # Update image names
         self.image_coll.clear()
         imgs = bpy.data.images
         for img in imgs:
             self.image_coll.add().name = img.name
+
+        # Update uv layer name
+        self.uv_layer_coll.clear()
+        for uv in obj.data.uv_textures:
+            self.uv_layer_coll.add().name = uv.name
+
+        # Use active uv layer name by default
+        self.uv_layer = obj.data.uv_textures.active.name
+
         return context.window_manager.invoke_props_dialog(self)
 
     def draw(self, context):
@@ -1145,17 +1181,25 @@ class AddSlotWithAvailableImage(bpy.types.Operator):
         if override_mode == 'OFF':
             layout.prop(self, 'influence')
         layout.prop(self, 'blend_type')
+        layout.prop_search(self, "uv_layer", self, "uv_layer_coll", text='UV Layer', icon='GROUP_UVS')
 
     def execute(self, context):
+        obj = context.object
         override_mode = context.scene.mo_props.override_mode
         mat = get_active_material()
         img = bpy.data.images.get(self.image_name)
 
-        slot = add_new_paint_slot(mat, img, self.influence, override_mode, self.blend_type)
+        slot = add_new_paint_slot(mat, img, self.influence, override_mode, self.blend_type, self.uv_layer)
 
         if not slot:
             self.report({'ERROR'}, "Maximum number of textures added is 18!")
             return {'CANCELLED'}
+
+        # Set object active uv map to the inputed value
+        for i, uv in enumerate(obj.data.uv_textures):
+            if uv.name == self.uv_layer:
+                obj.data.uv_textures.active_index = i
+                break
 
         # Refresh paint slots
         bpy.ops.material.yp_refresh_paint_slots(all_materials=False)
