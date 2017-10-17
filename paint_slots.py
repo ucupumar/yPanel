@@ -2223,22 +2223,37 @@ def update_node_mat_image_texpaint(scene):
     node_mat = mat.active_node_material
     if not node_mat: return
 
+    # Get image
     imgs = node_mat.texture_paint_images
     if not imgs: return
     img = node_mat.texture_paint_images[node_mat.paint_active_slot]
+
+    # Get texture slot
+    ts = node_mat.texture_slots[node_mat.texture_paint_slots[node_mat.paint_active_slot].index]
+    #ts.uv_layer
     
     if obj.mode != 'TEXTURE_PAINT': return
 
     screen = bpy.context.screen
-    yp_ids = [int(i[2:]) for i in screen.yp_props.uncollapsed_main_ypanel.split()]
+    yp_ids = [int(i[2:]) for i in screen.yp_props.uncollapsed_paint_slots.split()]
     if not yp_ids: return
 
+    # Set texture paint to image mode
     settings = scene.tool_settings.image_paint
     if settings.mode != 'IMAGE':
         settings.mode = 'IMAGE'
 
+    # Set the image
     if settings.canvas != img:
         settings.canvas = img
+
+    # Set active uv layer
+    if (obj.data.uv_textures.active.name != ts.uv_layer 
+        and any([uv for uv in obj.data.uv_textures if uv.name == ts.uv_layer])):
+        for i, uv in enumerate(obj.data.uv_textures):
+            if uv.name == ts.uv_layer:
+                obj.data.uv_textures.active_index = i
+                break
 
 # PROPS
 class ScenePaintSlotsProps(bpy.types.PropertyGroup):
