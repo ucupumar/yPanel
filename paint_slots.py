@@ -642,6 +642,7 @@ def add_new_paint_slot(mat, img, influence, override_mode, blend_type = 'MIX', u
             if not ts.texture:
                 # Reset previous slot configuration by create new slot
                 slot = mat.texture_slots.create(i)
+                slot.use = True
                 break
             if ts.texture:
                 counter += 1
