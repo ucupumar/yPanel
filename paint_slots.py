@@ -93,6 +93,13 @@ influence_items = (
                  ('warp', 'Warp', ''),
                  ('displacement', 'Displacement', ''))
 
+def get_active_image():
+    mat = get_active_material()
+    if not mat: return None
+    if len(mat.texture_paint_images) < 1: return None
+    img = mat.texture_paint_images[mat.paint_active_slot]
+    return img
+
 class MatchTextureNameToImage(bpy.types.Operator):
     bl_idname = "paint.yp_match_texture_name_to_image_name"
     bl_label = "Match all texture name to image name"

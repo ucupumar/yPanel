@@ -2,6 +2,7 @@ import bpy, os
 from bpy.props import *
 from bpy.app.handlers import persistent
 from .common import *
+from . import paint_slots
 
 class SaveAsImage(bpy.types.Operator):
     bl_idname = "image.yp_save_as_texture_paint"
@@ -53,7 +54,7 @@ class SaveImage(bpy.types.Operator):
 
     @classmethod
     def poll(cls, context):
-        return context.object and get_active_material()
+        return paint_slots.get_active_image()
 
     def execute(self, context):
         obj = context.object
@@ -77,7 +78,7 @@ class SaveAllImage(bpy.types.Operator):
 
     @classmethod
     def poll(cls, context):
-        return context.object and get_active_material()
+        return paint_slots.get_active_image()
 
     def execute(self, context):
         bpy.ops.image.save_dirty()
@@ -91,7 +92,7 @@ class ReloadImage(bpy.types.Operator):
 
     @classmethod
     def poll(cls, context):
-        return context.object and get_active_material()
+        return paint_slots.get_active_image()
 
     def execute(self, context):
         obj = context.object
@@ -116,8 +117,7 @@ class PackImage(bpy.types.Operator):
 
     @classmethod
     def poll(cls, context):
-        obj = context.object
-        return obj and obj.type == 'MESH' and get_active_material()
+        return paint_slots.get_active_image()
 
     def execute(self, context):
         obj = context.object

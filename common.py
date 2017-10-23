@@ -26,9 +26,18 @@ blend_type_items = (("MIX", "Mix", ""),
 	             ("LINEAR_LIGHT", "Linear Light", ""))
 
 def get_active_material():
-    mat = bpy.context.object.active_material
-    if mat and mat.use_nodes:
-        mat = mat.active_node_material
+    scene = bpy.context.scene
+    engine = scene.render.engine
+    obj = bpy.context.object
+
+    if not obj: return None
+
+    mat = obj.active_material
+
+    if engine in {'BLENDER_RENDER', 'BLENDER_GAME'}:
+        if mat and mat.use_nodes:
+            mat = mat.active_node_material
+
     return mat
 
 def in_active_layer(obj):
