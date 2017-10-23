@@ -747,7 +747,7 @@ class VIEW3D_PT_ypanel(bpy.types.Panel):
                         #open='paint.yp_open_paint_texture_from_file', 
                         unlink='paint.yp_remove_texture_paint_slot')
             #if img.is_dirty:
-            row.operator("paint.yp_reload_texture_paint", text="", icon='FILE_REFRESH')
+            row.operator("image.yp_reload_texture_paint", text="", icon='FILE_REFRESH')
             if self.is_collapsed('generated_image_setting'):
                 row.operator('view3d.yp_panel_toggle', icon='SCRIPTWIN', text='').panel = 'generated_image_setting'
             else:
@@ -908,19 +908,19 @@ class VIEW3D_PT_ypanel(bpy.types.Panel):
             #if img and img.filepath != '':
             if img:
                 if img.packed_file:
-                    col.operator("paint.yp_save_as_texture_paint", text="Save & Unpack Image")
+                    col.operator("image.yp_save_as_texture_paint", text="Save & Unpack Image")
                 elif img.filepath == '':
-                    col.operator("paint.yp_save_as_texture_paint", text="Save Image")
+                    col.operator("image.yp_save_as_texture_paint", text="Save Image")
                 else: 
-                    col.operator("paint.yp_save_texture_paint", text="Save Image")
-                    col.operator("paint.yp_save_as_texture_paint", text="Save As Image")
+                    col.operator("image.yp_save_texture_paint", text="Save Image")
+                    col.operator("image.yp_save_as_texture_paint", text="Save As Image")
             col.operator("image.yp_save_dirty", text="Save All Images")
 
             #if not img.packed_file:
             col = box.column(align=True)
-            col.operator("paint.yp_pack_image", text="Pack Image", icon='UGLYPACKAGE')
-                #col.operator("paint.yp_pack_image", text="Unpack Image", icon='PACKAGE').reverse = True
-            #else: col.operator("paint.yp_pack_image", text="Pack Image", icon='UGLYPACKAGE').reverse = False
+            col.operator("image.yp_pack_image", text="Pack Image", icon='UGLYPACKAGE')
+                #col.operator("image.yp_pack_image", text="Unpack Image", icon='PACKAGE').reverse = True
+            #else: col.operator("image.yp_pack_image", text="Pack Image", icon='UGLYPACKAGE').reverse = False
 
     def bake_ao_settings_panel(self, box):
 

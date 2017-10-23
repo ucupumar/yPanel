@@ -4,7 +4,7 @@ from bpy.app.handlers import persistent
 from .common import *
 
 class SaveAsImage(bpy.types.Operator):
-    bl_idname = "paint.yp_save_as_texture_paint"
+    bl_idname = "image.yp_save_as_texture_paint"
     bl_label = "Save As texture paint image"
     bl_description = "Save As texture paint Image"
     bl_options = {'REGISTER'}
@@ -47,7 +47,7 @@ class SaveAsImage(bpy.types.Operator):
         return{'FINISHED'}
 
 class SaveImage(bpy.types.Operator):
-    bl_idname = "paint.yp_save_texture_paint"
+    bl_idname = "image.yp_save_texture_paint"
     bl_label = "Save texture paint image"
     bl_description = "Save texture paint image"
 
@@ -85,7 +85,7 @@ class SaveAllImage(bpy.types.Operator):
         return {'FINISHED'}
 
 class ReloadImage(bpy.types.Operator):
-    bl_idname = "paint.yp_reload_texture_paint"
+    bl_idname = "image.yp_reload_texture_paint"
     bl_label = "Reload texture paint image"
     bl_description = "Reload texture paint image"
     bl_options = {'REGISTER', 'UNDO'}
