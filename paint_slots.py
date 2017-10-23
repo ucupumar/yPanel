@@ -93,26 +93,6 @@ influence_items = (
                  ('warp', 'Warp', ''),
                  ('displacement', 'Displacement', ''))
 
-class PackImage(bpy.types.Operator):
-    bl_idname = "paint.yp_pack_image"
-    bl_label = "Pack image into blend file"
-    bl_description = "Pack image to blend file"
-    bl_options = {'REGISTER', 'UNDO'}
-
-    @classmethod
-    def poll(cls, context):
-        obj = context.object
-        return obj and obj.type == 'MESH' and get_active_material()
-
-    def execute(self, context):
-        obj = context.object
-        mat = get_active_material()
-        img = mat.texture_paint_images[mat.paint_active_slot]
-
-        img.pack(as_png=True)
-
-        return{'FINISHED'}
-
 class MatchTextureNameToImage(bpy.types.Operator):
     bl_idname = "paint.yp_match_texture_name_to_image_name"
     bl_label = "Match all texture name to image name"

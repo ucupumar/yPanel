@@ -11,16 +11,16 @@ class SaveAsImage(bpy.types.Operator):
 
     @classmethod
     def poll(cls, context):
-        obj = context.object
-        return obj and obj.type == 'MESH' and get_active_material()
+        return context.object and get_active_material()
 
     def execute(self, context):
         scene = context.scene
         obj = context.object
         mat = get_active_material()
-        img = mat.texture_paint_images[mat.paint_active_slot]
         screen = context.screen
         area = context.area
+
+        img = mat.texture_paint_images[mat.paint_active_slot]
 
         screen.ps_props.old_type = area.type
         scene.ps_props.screen_name = screen.name
@@ -53,12 +53,12 @@ class SaveImage(bpy.types.Operator):
 
     @classmethod
     def poll(cls, context):
-        obj = context.object
-        return obj and obj.type == 'MESH' and get_active_material()
+        return context.object and get_active_material()
 
     def execute(self, context):
         obj = context.object
         mat = get_active_material()
+
         img = mat.texture_paint_images[mat.paint_active_slot]
 
         area = context.area
@@ -77,8 +77,7 @@ class SaveAllImage(bpy.types.Operator):
 
     @classmethod
     def poll(cls, context):
-        obj = context.object
-        return obj and obj.type == 'MESH' and get_active_material()
+        return context.object and get_active_material()
 
     def execute(self, context):
         bpy.ops.image.save_dirty()
@@ -92,12 +91,12 @@ class ReloadImage(bpy.types.Operator):
 
     @classmethod
     def poll(cls, context):
-        obj = context.object
-        return obj and obj.type == 'MESH' and get_active_material()
+        return context.object and get_active_material()
 
     def execute(self, context):
         obj = context.object
         mat = get_active_material()
+
         img = mat.texture_paint_images[mat.paint_active_slot]
 
         area = context.area
@@ -109,6 +108,26 @@ class ReloadImage(bpy.types.Operator):
 
         return {'FINISHED'}
 
+class PackImage(bpy.types.Operator):
+    bl_idname = "image.yp_pack_image"
+    bl_label = "Pack image into blend file"
+    bl_description = "Pack image to blend file"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    @classmethod
+    def poll(cls, context):
+        obj = context.object
+        return obj and obj.type == 'MESH' and get_active_material()
+
+    def execute(self, context):
+        obj = context.object
+        mat = get_active_material()
+        img = mat.texture_paint_images[mat.paint_active_slot]
+
+        img.pack(as_png=True)
+
+        return{'FINISHED'}
+
 # UPDATE HANDLERS
 @persistent
 def set_recover_area_enable(scene):
@@ -117,7 +136,7 @@ def set_recover_area_enable(scene):
 
     #print(ops[-1].bl_idname)
 
-    if (ops and 'PAINT_OT_yp_save_as_texture_paint' in ops[-1].bl_idname and
+    if (ops and 'IMAGE_OT_yp_save_as_texture_paint' in ops[-1].bl_idname and
             screen.areas[0].type == 'FILE_BROWSER' and
             not screen.ps_props.recover_area):
 
@@ -131,7 +150,7 @@ def do_recover_area(scene):
     screen = bpy.context.screen
     ops = bpy.context.window_manager.operators
 
-    if (ops and 'PAINT_OT_yp_save_as_texture_paint' in ops[-1].bl_idname and
+    if (ops and 'IMAGE_OT_yp_save_as_texture_paint' in ops[-1].bl_idname and
         screen.areas[0].type != 'FILE_BROWSER' and
         screen.ps_props.recover_area):
         
@@ -183,7 +202,6 @@ def do_recover_area(scene):
                         img.name = true_name
 
                 return
-
 # PROPS
 class ScenePaintSlotsProps(bpy.types.PropertyGroup):
     screen_name = StringProperty(default='')
