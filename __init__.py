@@ -12,13 +12,14 @@ bl_info = {
 if "bpy" in locals():
     import imp
     #imp.reload(common)
+    imp.reload(save_and_pack)
     imp.reload(paint_slots)
     imp.reload(material_override)
     imp.reload(bake_tools)
     imp.reload(header_extras)
     #print("Reloaded yPanel multifiles")     
 else:
-    from . import paint_slots, material_override, bake_tools, header_extras #, common
+    from . import paint_slots, material_override, bake_tools, header_extras, save_and_pack #, common
     #print("Imported yPanel multifiles")     
 
 import bpy, math, os
@@ -913,7 +914,7 @@ class VIEW3D_PT_ypanel(bpy.types.Panel):
                 else: 
                     col.operator("paint.yp_save_texture_paint", text="Save Image")
                     col.operator("paint.yp_save_as_texture_paint", text="Save As Image")
-            col.operator("image.save_dirty", text="Save All Images")
+            col.operator("image.yp_save_dirty", text="Save All Images")
 
             #if not img.packed_file:
             col = box.column(align=True)
@@ -1804,6 +1805,7 @@ def register():
     #bpy.types.Material.yp_props = PointerProperty(type=MaterialYPanelProps)
 
     # Extras
+    save_and_pack.register()
     paint_slots.register()
     material_override.register()
     bake_tools.register()
@@ -1818,6 +1820,7 @@ def unregister():
     bpy.utils.previews.remove(custom_icons)
     
     # Extras
+    save_and_pack.unregister()
     paint_slots.unregister()
     material_override.unregister()
     bake_tools.unregister()

@@ -113,46 +113,6 @@ class PackImage(bpy.types.Operator):
 
         return{'FINISHED'}
 
-class SaveAsImage(bpy.types.Operator):
-    bl_idname = "paint.yp_save_as_texture_paint"
-    bl_label = "Save As texture paint image"
-    bl_description = "Save As texture paint Image"
-    bl_options = {'REGISTER'}
-
-    @classmethod
-    def poll(cls, context):
-        obj = context.object
-        return obj and obj.type == 'MESH' and get_active_material()
-
-    def execute(self, context):
-        scene = context.scene
-        obj = context.object
-        mat = get_active_material()
-        img = mat.texture_paint_images[mat.paint_active_slot]
-        screen = context.screen
-        area = context.area
-
-        screen.ps_props.old_type = area.type
-        scene.ps_props.screen_name = screen.name
-
-        for i, a in enumerate(context.screen.areas):
-            if a == area:
-                screen.ps_props.temp_image_area_index = i
-        
-        old_type = area.type
-        area.type = 'IMAGE_EDITOR'
-        area.spaces[0].image = img
-        scene.ps_props.last_image_name = img.name
-
-        # HACK! change filepath if image is packed
-        if img.packed_file:
-            scene.ps_props.last_image_path = img.filepath_raw
-            img.filepath_raw = '_TEMP_'
-
-        bpy.ops.image.save_as('INVOKE_DEFAULT', relative_path=True)
-
-        return{'FINISHED'}
-
 class MatchTextureNameToImage(bpy.types.Operator):
     bl_idname = "paint.yp_match_texture_name_to_image_name"
     bl_label = "Match all texture name to image name"
@@ -168,55 +128,6 @@ class MatchTextureNameToImage(bpy.types.Operator):
         for tex in bpy.data.textures:
             if tex.type == 'IMAGE' and tex.image:
                 tex.name = tex.image.name
-        return {'FINISHED'}
-
-class SaveImage(bpy.types.Operator):
-    bl_idname = "paint.yp_save_texture_paint"
-    bl_label = "Save texture paint image"
-    bl_description = "Save texture paint image"
-
-    @classmethod
-    def poll(cls, context):
-        obj = context.object
-        return obj and obj.type == 'MESH' and get_active_material()
-
-    def execute(self, context):
-        obj = context.object
-        mat = get_active_material()
-        img = mat.texture_paint_images[mat.paint_active_slot]
-
-        area = context.area
-        old_type = area.type
-        area.type = 'IMAGE_EDITOR'
-        area.spaces[0].image = img
-        bpy.ops.image.save()
-        area.type = old_type
-
-        return{'FINISHED'}
-
-class ReloadImage(bpy.types.Operator):
-    bl_idname = "paint.yp_reload_texture_paint"
-    bl_label = "Reload texture paint image"
-    bl_description = "Reload texture paint image"
-    bl_options = {'REGISTER', 'UNDO'}
-
-    @classmethod
-    def poll(cls, context):
-        obj = context.object
-        return obj and obj.type == 'MESH' and get_active_material()
-
-    def execute(self, context):
-        obj = context.object
-        mat = get_active_material()
-        img = mat.texture_paint_images[mat.paint_active_slot]
-
-        area = context.area
-        old_type = area.type
-        area.type = 'IMAGE_EDITOR'
-        area.spaces[0].image = img
-        bpy.ops.image.reload()
-        area.type = old_type
-
         return {'FINISHED'}
 
 class AddSimpleUVs(bpy.types.Operator):
@@ -2163,63 +2074,6 @@ class NewMaterial(bpy.types.Operator):
         mat.diffuse_intensity = 1.0
         return {'FINISHED'}
 
-# UPDATE HANDLERS
-@persistent
-def set_recover_area_enable(scene):
-    screen = bpy.context.screen
-    ops = bpy.context.window_manager.operators
-
-    #print(ops[-1].bl_idname)
-
-    if (ops and 'PAINT_OT_yp_save_as_texture_paint' in ops[-1].bl_idname and
-            screen.areas[0].type == 'FILE_BROWSER' and
-            not screen.ps_props.recover_area):
-
-        normal_screen = bpy.data.screens[scene.ps_props.screen_name]
-        normal_screen.ps_props.recover_area = True
-
-        print(normal_screen)
-
-@persistent
-def do_recover_area(scene):
-    screen = bpy.context.screen
-    ops = bpy.context.window_manager.operators
-
-    if (ops and 'PAINT_OT_yp_save_as_texture_paint' in ops[-1].bl_idname and
-        screen.areas[0].type != 'FILE_BROWSER' and
-        screen.ps_props.recover_area):
-        
-        for i, area in enumerate(screen.areas):
-            if i == screen.ps_props.temp_image_area_index:
-                #img = area.spaces[0].image
-                #if not img.is_dirty and img.packed_file:
-                #    print('apeeel')
-                #    #img.pack(as_png=True)
-                #    img.unpack()
-                if area.type == 'IMAGE_EDITOR':
-                    area.type = screen.ps_props.old_type
-                    screen.ps_props.recover_area = False
-                    img = bpy.data.images.get(scene.ps_props.last_image_name)
-                    if img and img.packed_file:
-                        if img.filepath == '_TEMP_':
-                            img.filepath_raw = scene.ps_props.last_image_path
-                        else:
-                            print('aaaa', img.filepath)
-                            true_filepath = img.filepath
-                            true_name = img.name
-
-                            # JUST ANOTHER HACK! Blender sometimes unpack at wrong filepath
-                            # Just make sure it can be tracked and then delete it
-                            img.name = '_TEMP_'
-                            img.unpack(method='USE_ORIGINAL')
-                            fail_path = img.filepath_from_user()
-                            os.remove(fail_path)
-
-                            # Recover image
-                            img.filepath = true_filepath
-                            img.name = true_name
-                    return
-
 @persistent
 def recover_loss_of_active_paint_slot_index_hack(scene):
 
@@ -2300,17 +2154,6 @@ def update_node_mat_image_texpaint(scene):
                 obj.data.uv_textures.active_index = i
                 break
 
-# PROPS
-class ScenePaintSlotsProps(bpy.types.PropertyGroup):
-    screen_name = StringProperty(default='')
-    last_image_name = StringProperty(default='')
-    last_image_path = StringProperty(default='')
-
-class ScreenPaintSlotsProps(bpy.types.PropertyGroup):
-    temp_image_area_index = IntProperty(default=-1)
-    old_type = StringProperty(default='')
-    recover_area = BoolProperty(default=False)
-
 class ImagePaintSlotsProps(bpy.types.PropertyGroup):
     original_packed = BoolProperty(default=False)
 
@@ -2369,13 +2212,9 @@ def register():
     #bpy.types.Texture.extras = PointerProperty(type=TextureExtras)
     # Handlers
     #bpy.app.handlers.scene_update_pre.append(match_paint_texture_slot)
-    bpy.types.Screen.ps_props = PointerProperty(type=ScreenPaintSlotsProps)
-    bpy.types.Scene.ps_props = PointerProperty(type=ScenePaintSlotsProps)
     bpy.types.Image.ps_props = PointerProperty(type=ImagePaintSlotsProps)
     bpy.types.Material.ps_props = PointerProperty(type=MaterialPaintSlotProps)
 
-    bpy.app.handlers.scene_update_pre.append(set_recover_area_enable)
-    bpy.app.handlers.scene_update_pre.append(do_recover_area)
     bpy.app.handlers.scene_update_pre.append(update_node_mat_image_texpaint)
     bpy.app.handlers.scene_update_pre.append(recover_loss_of_active_paint_slot_index_hack)
 
@@ -2384,7 +2223,5 @@ def unregister():
     #bpy.types.VIEW3D_PT_slots_projectpaint.remove(draw_texture_paint_slot_extras)
     # Handlers
     #bpy.app.handlers.scene_update_pre.remove(match_paint_texture_slot)
-    bpy.app.handlers.scene_update_pre.remove(do_recover_area)
-    bpy.app.handlers.scene_update_pre.remove(set_recover_area_enable)
     bpy.app.handlers.scene_update_pre.remove(update_node_mat_image_texpaint)
     bpy.app.handlers.scene_update_pre.remove(recover_loss_of_active_paint_slot_index_hack)
