@@ -17,9 +17,10 @@ if "bpy" in locals():
     imp.reload(material_override)
     imp.reload(bake_tools)
     imp.reload(header_extras)
+    imp.reload(preferences)
     #print("Reloaded yPanel multifiles")     
 else:
-    from . import paint_slots, material_override, bake_tools, header_extras, save_and_pack #, common
+    from . import paint_slots, material_override, bake_tools, header_extras, save_and_pack, preferences #, common
     #print("Imported yPanel multifiles")     
 
 import bpy, math, os
@@ -1571,112 +1572,6 @@ class TEXTURE_UL_custom_paint_slots(bpy.types.UIList):
                 if mat.texture_paint_slots:
                     row.prop(mat, 'use_textures', text='', index=ts_idx)
 
-def set_keybind():
-    wm = bpy.context.window_manager
-     
-    f3_keybind_found = False
-    f4_keybind_found = False
-    
-    # Object non modal keybinds
-    # Get object non modal keymaps
-    km = wm.keyconfigs.addon.keymaps.get('Object Non-modal')
-    if not km:
-        km = wm.keyconfigs.addon.keymaps.new('Object Non-modal')
-    
-    # Search for F3 & F4 keybind
-    for kmi in km.keymap_items:
-        
-        if kmi.type == 'F3':
-            if kmi.idname == 'object.mode_set' and kmi.properties.mode == 'SCULPT':
-                f3_keybind_found = True
-                kmi.active = True
-            else:
-                # Deactivate other F3 keybind
-                kmi.active = False
-                
-        if kmi.type == 'F4':
-            if kmi.idname == 'object.mode_set' and kmi.properties.mode == 'TEXTURE_PAINT':
-                f4_keybind_found = True
-                kmi.active = True
-            else:
-                # Deactivate other F4 keybind
-                kmi.active = False
-
-    # Set F3 Keybind
-    if not f3_keybind_found:
-        new_shortcut = km.keymap_items.new('object.mode_set', 'F3', 'PRESS')
-        new_shortcut.properties.mode = 'SCULPT'
-        new_shortcut.properties.toggle = True
-    
-    # Set F4 Keybind
-    if not f4_keybind_found:
-        new_shortcut = km.keymap_items.new('object.mode_set', 'F4', 'PRESS')
-        new_shortcut.properties.mode = 'TEXTURE_PAINT'
-        new_shortcut.properties.toggle = True
-
-    f4_keybind_found = False
-    f7_keybind_found = False
-    z_keybind_found = False
-    d_keybind_found = False
-
-    # Mode change keybinds need Window keymaps
-    km = wm.keyconfigs.addon.keymaps.get('Window')
-    if not km:
-        km = wm.keyconfigs.addon.keymaps.new('Window')
-
-    for kmi in km.keymap_items:
-        
-        # Search for F4 keybind
-        if kmi.type == 'F4':
-            if kmi.idname == 'paint.yp_image_paint_toggle':
-                f4_keybind_found = True
-                kmi.active = True
-            else:
-                # Deactivate other F4 keybind
-                kmi.active = False
-
-        if kmi.type == 'F7':
-            if kmi.idname == 'scene.yp_use_simplify_toggle':
-                f7_keybind_found = True
-                kmi.active = True
-            else:
-                # Deactivate other F7 keybind
-                kmi.active = False
-
-        # Search for Shift Alt Z keybind
-        if kmi.type == 'Z' and kmi.shift and kmi.alt:
-            if kmi.idname == 'view3d.yp_material_shade_toggle':
-                z_keybind_found = True
-                kmi.active = True
-            else:
-                # Deactivate other Shift Alt Z keybind
-                kmi.active = False
-
-        # Search for D keybind
-        if kmi.type == 'D':
-            if kmi.idname == 'view3d.yp_only_render_toggle':
-                d_keybind_found = True
-                kmi.active = True
-            else:
-                # Deactivate other F7 keybind
-                kmi.active = False
-
-    # Set F4 Keybind
-    if not f4_keybind_found:
-        new_shortcut = km.keymap_items.new('paint.yp_image_paint_toggle', 'F4', 'PRESS')
-
-    # Set F7 Keybind
-    if not f7_keybind_found:
-        new_shortcut = km.keymap_items.new('scene.yp_use_simplify_toggle', 'F7', 'PRESS')
-
-    # Set Shift Alt Z keybind
-    if not z_keybind_found:
-        new_shortcut = km.keymap_items.new('view3d.yp_material_shade_toggle', 'Z', 'PRESS', shift=True, alt=True)
-
-    # Set D Keybind
-    if not d_keybind_found:
-        new_shortcut = km.keymap_items.new('view3d.yp_only_render_toggle', 'D', 'PRESS')
-
 # OPERATORS for keybinds
 class ToggleImagePaintMode(bpy.types.Operator):
     bl_idname = "paint.yp_image_paint_toggle"
@@ -1805,14 +1700,12 @@ def register():
     #bpy.types.Material.yp_props = PointerProperty(type=MaterialYPanelProps)
 
     # Extras
+    preferences.register()
     save_and_pack.register()
     paint_slots.register()
     material_override.register()
     bake_tools.register()
     header_extras.register()
-
-    # Keybind
-    set_keybind()
 
 def unregister():
     # Custom Icon
@@ -1820,6 +1713,7 @@ def unregister():
     bpy.utils.previews.remove(custom_icons)
     
     # Extras
+    preferences.unregister()
     save_and_pack.unregister()
     paint_slots.unregister()
     material_override.unregister()

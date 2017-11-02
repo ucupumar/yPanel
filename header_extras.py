@@ -269,19 +269,22 @@ def modified_global_header(self, context):
 
 original_global_header = bpy.types.INFO_HT_header.draw
 
-#class SceneYPanelSetting(bpy.types.PropertyGroup):
-#    global_extra_header = BoolProperty(default=True)
-#    viewport_extra_header = BoolProperty(default=True)
-
 def register():
-    #bpy.types.Scene.yp_props = PointerProperty(type=SceneYPanelSetting)
+    prefs = bpy.context.user_preferences.addons['yPanel'].preferences
 
-    bpy.types.VIEW3D_HT_header.append(viewport_header_addition)
-    bpy.types.INFO_HT_header.remove(original_global_header)
-    bpy.types.INFO_HT_header.prepend(modified_global_header)
+    if prefs.enable_bottom_panel:
+        bpy.types.VIEW3D_HT_header.append(viewport_header_addition)
+
+    if prefs.enable_top_panel:
+        bpy.types.INFO_HT_header.remove(original_global_header)
+        bpy.types.INFO_HT_header.prepend(modified_global_header)
 
 def unregister():
-    # Remove extra panels
-    bpy.types.VIEW3D_HT_header.remove(viewport_header_addition)
-    bpy.types.INFO_HT_header.remove(modified_global_header)
-    bpy.types.INFO_HT_header.prepend(original_global_header)
+    prefs = bpy.context.user_preferences.addons['yPanel'].preferences
+
+    if prefs.enable_bottom_panel:
+        bpy.types.VIEW3D_HT_header.remove(viewport_header_addition)
+
+    if prefs.enable_top_panel:
+        bpy.types.INFO_HT_header.remove(modified_global_header)
+        bpy.types.INFO_HT_header.prepend(original_global_header)
