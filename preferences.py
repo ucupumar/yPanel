@@ -171,14 +171,17 @@ class yPanelPreferences(AddonPreferences):
     def draw(self, context):
         layout = self.layout
 
-        row = layout.row()
+        box = layout.box()
+        row = box.row()
         row.prop(self, "enable_top_panel")
         row.prop(self, "enable_bottom_panel")
-        layout.prop(self, "use_keybind")
+
+        box = layout.box()
+        box.prop(self, "use_keybind")
 
         #col=layout.column(align=True)
-        layout.label(text="yPanel Shortcuts:")
-        row=layout.row(align=True)
+        #box.label(text="yPanel Shortcuts:")
+        row=box.row(align=True)
         col=row.column(align=True)
         col.label(text='F3')
         col.label(text='F4')
