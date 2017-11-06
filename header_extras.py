@@ -270,17 +270,10 @@ def modified_global_header(self, context):
 original_global_header = bpy.types.INFO_HT_header.draw
 
 def register():
-    addon_prefs = bpy.context.user_preferences.addons.get('yPanel')
-    if addon_prefs and not addon_prefs.preferences.enable_bottom_panel:
-        pass
-    else:
-        bpy.types.VIEW3D_HT_header.append(viewport_header_addition)
+    bpy.types.VIEW3D_HT_header.append(viewport_header_addition)
 
-    if addon_prefs and not addon_prefs.preferences.enable_top_panel:
-        pass
-    else:
-        bpy.types.INFO_HT_header.remove(original_global_header)
-        bpy.types.INFO_HT_header.prepend(modified_global_header)
+    bpy.types.INFO_HT_header.remove(original_global_header)
+    bpy.types.INFO_HT_header.prepend(modified_global_header)
 
 def unregister():
     bpy.types.VIEW3D_HT_header.remove(viewport_header_addition)
