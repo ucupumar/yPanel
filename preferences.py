@@ -196,9 +196,7 @@ class yPanelPreferences(AddonPreferences):
         col.label(text=': Only Render (viewport) toggle')
 
 def register():
-    prefs = bpy.context.user_preferences.addons['yPanel'].preferences
-    if prefs.use_keybind:
-        set_keybind()
+    set_keybind()
 
 def unregister():
-    pass
+    remove_keybind()
