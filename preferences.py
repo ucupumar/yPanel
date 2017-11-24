@@ -212,6 +212,10 @@ def register():
             toggle_top_panel(True)
         if prefs.enable_bottom_panel:
             toggle_bottom_panel(True)
+    else:
+        set_keybind()
+        toggle_top_panel(True)
+        toggle_bottom_panel(True)
 
 def unregister():
     remove_keybind()
