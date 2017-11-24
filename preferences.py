@@ -204,6 +204,7 @@ class yPanelPreferences(AddonPreferences):
 
 def register():
     prefs = bpy.context.user_preferences.addons.get('yPanel')
+    if not prefs: prefs = bpy.context.user_preferences.addons.get('yPanel-master')
     if prefs: 
         prefs = prefs.preferences
         if prefs.use_keybind:
