@@ -133,6 +133,7 @@ def update_use_keybind(self, context):
 
 def toggle_top_panel(enable):
     if enable:
+        bpy.types.INFO_HT_header.remove(header_extras.modified_global_header)
         bpy.types.INFO_HT_header.remove(header_extras.original_global_header)
         bpy.types.INFO_HT_header.prepend(header_extras.modified_global_header)
     else:
