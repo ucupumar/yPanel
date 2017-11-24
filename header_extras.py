@@ -270,14 +270,7 @@ def modified_global_header(self, context):
 original_global_header = bpy.types.INFO_HT_header.draw
 
 def register():
-    bpy.types.VIEW3D_HT_header.append(viewport_header_addition)
-
-    bpy.types.INFO_HT_header.remove(original_global_header)
-    bpy.types.INFO_HT_header.prepend(modified_global_header)
+    pass
 
 def unregister():
-    bpy.types.VIEW3D_HT_header.remove(viewport_header_addition)
-
-    bpy.types.INFO_HT_header.remove(modified_global_header)
-    bpy.types.INFO_HT_header.remove(original_global_header)
-    bpy.types.INFO_HT_header.prepend(original_global_header)
+    pass

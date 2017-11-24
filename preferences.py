@@ -131,19 +131,26 @@ def update_use_keybind(self, context):
         remove_keybind()
     else: set_keybind()
 
-def update_enable_top_panel(self, context):
-    if self.enable_top_panel:
+def toggle_top_panel(enable):
+    if enable:
         bpy.types.INFO_HT_header.remove(header_extras.original_global_header)
         bpy.types.INFO_HT_header.prepend(header_extras.modified_global_header)
     else:
         bpy.types.INFO_HT_header.remove(header_extras.modified_global_header)
+        bpy.types.INFO_HT_header.remove(header_extras.original_global_header)
         bpy.types.INFO_HT_header.prepend(header_extras.original_global_header)
 
-def update_enable_bottom_panel(self, context):
-    if self.enable_bottom_panel:
+def toggle_bottom_panel(enable):
+    if enable:
         bpy.types.VIEW3D_HT_header.append(header_extras.viewport_header_addition)
     else:
         bpy.types.VIEW3D_HT_header.remove(header_extras.viewport_header_addition)
+
+def update_enable_top_panel(self, context):
+    toggle_top_panel(self.enable_top_panel)
+
+def update_enable_bottom_panel(self, context):
+    toggle_bottom_panel(self.enable_bottom_panel)
 
 class yPanelPreferences(AddonPreferences):
     # this must match the addon name, use '__package__'
@@ -196,7 +203,17 @@ class yPanelPreferences(AddonPreferences):
         col.label(text=': Only Render (viewport) toggle')
 
 def register():
-    set_keybind()
+    prefs = bpy.context.user_preferences.addons.get('yPanel')
+    if prefs: 
+        prefs = prefs.preferences
+        if prefs.use_keybind:
+            set_keybind()
+        if prefs.enable_top_panel:
+            toggle_top_panel(True)
+        if prefs.enable_bottom_panel:
+            toggle_bottom_panel(True)
 
 def unregister():
     remove_keybind()
+    toggle_top_panel(False)
+    toggle_bottom_panel(False)
