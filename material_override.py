@@ -489,6 +489,7 @@ class RefreshPaintSlots(bpy.types.Operator):
         area.type = 'VIEW_3D'
 
         # Refresh all materials option
+        mats = []
         if self.all_materials:
             mats = bpy.data.materials
         elif obj and obj.type == 'MESH':
@@ -503,6 +504,7 @@ class RefreshPaintSlots(bpy.types.Operator):
 
         # Create temporary object to store all materials
         bpy.ops.mesh.primitive_cube_add()
+        bpy.ops.object.mode_set(mode='OBJECT')
         temp_obj = context.object
         temp_obj.select = True
 
