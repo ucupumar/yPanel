@@ -129,82 +129,70 @@ def viewport_header_addition(self, context):
     gs = scene.game_settings 
     toolsettings = context.tool_settings
     mo_props = scene.mo_props
-    screen = context.screen
     area = context.area
-
-    if screen.show_fullscreen:
-        screen = bpy.data.screens[screen.name[:-10]]
-        # Search for original id on non fullscreen screen
-        area_id = [i for i, a in enumerate(screen.areas) if (
-                len(a.spaces) == 0 or (a.type == 'INFO' and i != 0)
-                )][0]
-    else: area_id = [i for i, a in enumerate(screen.areas) if a == area][0]
-    active_ids = [int(i[2:]) for i in screen.yp_props.uncollapsed_header_extra.split()]
+    ypui = context.window_manager.yp_ui
 
     layout = self.layout
 
-    if area_id not in active_ids:
-        layout.operator('view3d.yp_panel_toggle', icon='DOWNARROW_HLT', text='', emboss=False).panel = 'header_extra'
-    else: 
-        layout.operator('view3d.yp_panel_toggle', icon='RIGHTARROW', text='', emboss=False).panel = 'header_extra'
+    icon = 'TRIA_RIGHT' if ypui.show_header_extra else 'TRIA_DOWN'
+    layout.prop(ypui, 'show_header_extra', emboss=False, text='', icon=icon)
+    if not ypui.show_header_extra:
+        return
 
-        #row = layout.row(align=True)
-        #mode_switcher_panel(self)
+    layout.prop(space, 'viewport_shade', text='', expand=True)
+    layout.label('Shading: ' + shade_dict[space.viewport_shade])
 
-        layout.prop(space, 'viewport_shade', text='', expand=True)
-        layout.label('Shading: ' + shade_dict[space.viewport_shade])
+    if scene.render.engine in {'BLENDER_RENDER', 'BLENDER_GAME'}: 
+        if space.viewport_shade == 'TEXTURED':
+            layout.prop(gs, "material_mode", expand=True)
 
-        if scene.render.engine in {'BLENDER_RENDER', 'BLENDER_GAME'}: 
-            if space.viewport_shade == 'TEXTURED':
-                layout.prop(gs, "material_mode", expand=True)
+        if ((gs.material_mode == 'GLSL' and space.viewport_shade == 'TEXTURED')
+            or space.viewport_shade == 'MATERIAL'):
 
-            if ((gs.material_mode == 'GLSL' and space.viewport_shade == 'TEXTURED')
-                or space.viewport_shade == 'MATERIAL'):
-
-                if mo_props.override_mode == 'OFF':
-                    layout.operator_menu_enum("material.yp_override_material_menu_enum", "mode", 
-                            icon='MATERIAL', text='Material Override')
-                else:
-                    layout.alert = True
-                    layout.operator('material.yp_override_material', 
-                            icon = material_override.mo_icons[mo_props.override_mode],
-                            text = material_override.mo_names[mo_props.override_mode]).mode = 'OFF'
-                    layout.alert = False
-
-            elif mo_props.override_mode != 'OFF':
+            if mo_props.override_mode == 'OFF':
+                layout.operator_menu_enum("material.yp_override_material_menu_enum", "mode", 
+                        icon='MATERIAL', text='Material Override')
+            else:
                 layout.alert = True
-                layout.operator('material.yp_override_material', icon='CANCEL', text='Recover Material').mode = 'OFF'
+                layout.operator('material.yp_override_material', 
+                        icon = material_override.mo_icons[mo_props.override_mode],
+                        text = material_override.mo_names[mo_props.override_mode]).mode = 'OFF'
                 layout.alert = False
 
-            if space.viewport_shade == 'TEXTURED' and gs.material_mode == 'MULTITEXTURE':
-                layout.prop(space, "show_textured_shadeless")
+        elif mo_props.override_mode != 'OFF':
+            layout.alert = True
+            layout.operator('material.yp_override_material', icon='CANCEL', text='Recover Material').mode = 'OFF'
+            layout.alert = False
 
-        layout.prop(space, 'show_only_render')
-        layout.prop(space, "show_world")
+        if space.viewport_shade == 'TEXTURED' and gs.material_mode == 'MULTITEXTURE':
+            layout.prop(space, "show_textured_shadeless")
 
-        if space.viewport_shade == 'SOLID':
-            layout.prop(space, "use_matcap")
-            layout.prop(space, "show_textured_solid")
+    layout.prop(space, 'show_only_render')
+    layout.prop(space, "show_world")
 
-        layout.prop(space, "show_backface_culling")
+    if space.viewport_shade == 'SOLID':
+        layout.prop(space, "use_matcap")
+        layout.prop(space, "show_textured_solid")
 
-        layout.prop(space.fx_settings, "use_ssao", text="AO")
+    layout.prop(space, "show_backface_culling")
 
-        if space.region_3d.view_perspective == 'CAMERA':
-            layout.prop(space.fx_settings, "use_dof", text='DOF')
+    layout.prop(space.fx_settings, "use_ssao", text="AO")
 
-        row = layout.row(align=True)
-        #row.prop(scene.render, 'use_simplify', text='', icon='MOD_DECIM')
-        row.prop(scene.render, 'use_simplify', text='Simplify')
-        if scene.render.use_simplify:
-            row.prop(scene.render, 'simplify_subdivision', text='Level')
-        
-        row = layout.row()
-        row.enabled = not space.show_only_render
-        #if not space.show_only_render:
-        row.operator('view3d.yp_toggle_display_wire', text='Wire')
+    if space.region_3d.view_perspective == 'CAMERA':
+        layout.prop(space.fx_settings, "use_dof", text='DOF')
 
-        layout.prop(scene, "frame_current", text="Frame")
+    row = layout.row(align=True)
+    #row.prop(scene.render, 'use_simplify', text='', icon='MOD_DECIM')
+    row.prop(scene.render, 'use_simplify', text='Simplify')
+    if scene.render.use_simplify:
+        row.prop(scene.render, 'simplify_subdivision', text='Level')
+    
+    row = layout.row()
+    row.enabled = not space.show_only_render
+    #if not space.show_only_render:
+    row.operator('view3d.yp_toggle_display_wire', text='Wire')
+
+    layout.prop(scene, "frame_current", text="Frame")
 
 def modified_global_header(self, context):
     layout = self.layout
@@ -260,7 +248,7 @@ def modified_global_header(self, context):
 
     row.prop(scene.render, 'use_simplify', text='', icon='MOD_DECIM')
     if scene.render.use_simplify:
-        row.prop(scene.render, 'simplify_subdivision', text='Level')
+        row.prop(scene.render, 'simplify_subdivision', text='Simplify Level')
 
     row.separator()
 

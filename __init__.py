@@ -30,42 +30,6 @@ from bpy.props import *
 import bpy.utils.previews
 from .common import *
 
-class TogglePanel(bpy.types.Operator):
-    bl_idname = "view3d.yp_panel_toggle"
-    bl_label = "Toggle Panel"
-    bl_description = "Toggle Panel"
-
-    panel = StringProperty(default='')
-
-    @classmethod
-    def poll(cls, context):
-        return context.area.type == 'VIEW_3D'
-    
-    def execute(self, context):
-        screen = context.screen
-        props = screen.yp_props
-        area = context.area
-
-        attr = [p for p in dir(props) if p.replace(self.panel, '') in {'collapsed_', 'uncollapsed_'}]
-        if not attr: return {'FINISHED'}
-        attr = attr[0]
-
-        if screen.show_fullscreen:
-            screen = bpy.data.screens[screen.name[:-10]]
-            props = screen.yp_props
-            idx = [i for i, a in enumerate(screen.areas) if (
-                    len(a.spaces) == 0 or (a.type == 'INFO' and i != 0)
-                    )][0]
-        else: idx = [i for i, a in enumerate(screen.areas) if a == area][0]
-
-        ids = [int(i[2:]) for i in getattr(props, attr).split()]
-
-        if idx not in ids:
-            setattr(props, attr, getattr(props, attr) + 'id' + str(idx) + ' ')
-        else: setattr(props, attr, getattr(props, attr).replace('id' + str(idx) + ' ', ''))
-
-        return {'FINISHED'}
-
 # PANELS
 class VIEW3D_PT_ypanel(bpy.types.Panel):
     bl_label = 'yPanel'
@@ -81,50 +45,15 @@ class VIEW3D_PT_ypanel(bpy.types.Panel):
         #return context.object
         return True
 
-    def is_collapsed(self, panel):
-        if self.panels[panel].collapse and self.id in self.panels[panel].ids:
-            return True
-        if not self.panels[panel].collapse and self.id not in self.panels[panel].ids:
-            return True
-        return False
-
-    def object_panel(self):
-        obj = bpy.context.object
-
-        # Object name
-        row = self.layout.row(align=True)
-        row.prop(obj, "name", text="Object")
-
-        if self.is_collapsed('object_setting'):
-            row.operator('view3d.yp_panel_toggle', icon='SCRIPTWIN', text='').panel = 'object_setting'
-        else:
-            row.alert=True
-            row.operator('view3d.yp_panel_toggle', icon='SCRIPTWIN', text='').panel = 'object_setting'
-            row.alert=False
-
-            box = self.layout.box()
-            col = box.column(align=True)
-            col.label('Draw Type:')
-            row = col.row(align=True)
-            row.prop(obj, 'draw_type', expand=True)
-
     def mode_panel(self):
     
         obj = bpy.context.object
     
         row = self.layout.row(align=True)
     
-        # If mode panel is collapsed
-        #if self.is_collapsed('mode_panel'):
-        #    row.operator('view3d.yp_panel_toggle', icon='TRIA_RIGHT', text='', emboss=False).panel = 'mode_panel'
-        #    row.label('Mode: ' + header_extras.mode_dict[obj.mode])
-        #    return
-    
-        #row.operator('view3d.yp_panel_toggle', icon='TRIA_DOWN', text='', emboss=False).panel = 'mode_panel'
         if not obj:
             row.label('Mode: ' + header_extras.mode_dict['OBJECT'])
-        else:
-            row.label('Mode: ' + header_extras.mode_dict[obj.mode])
+        else: row.label('Mode: ' + header_extras.mode_dict[obj.mode])
     
         row = self.layout.row(align=True)
     
@@ -134,30 +63,19 @@ class VIEW3D_PT_ypanel(bpy.types.Panel):
 
         space = bpy.context.space_data
         gs = bpy.context.scene.game_settings 
+        space = bpy.context.space_data
         scene = bpy.context.scene
         obj = bpy.context.object
 
         row = self.layout.row(align=True)
-        #if self.is_collapsed('shading_panel'):
-        #    row.operator('view3d.yp_panel_toggle', icon='TRIA_RIGHT', text='', emboss=False).panel = 'shading_panel'
-        #    row.label('Shading: ' + header_extras.shade_dict[space.viewport_shade])
-        #    return
-        
-        #row.operator('view3d.yp_panel_toggle', icon='TRIA_DOWN', text='', emboss=False).panel = 'shading_panel'
-        #row.operator('view3d.toggle_shading_panel', icon='TRIA_DOWN', text='', emboss=False)
         row.label('Shading: ' + header_extras.shade_dict[space.viewport_shade])
 
-        #box = self.layout.box()
-        #row = box.row(align=True)
         row = self.layout.row(align=True)
-        row.prop(space, 'viewport_shade', text='', expand=True)
+        icon = 'TRIA_DOWN' if self.ypui.show_shading_settings else 'TRIA_RIGHT'
+        row.prop(self.ypui, 'show_shading_settings', emboss=False, text='', icon=icon)
         row.separator()
-        if self.is_collapsed('shading_setting'):
-            row.operator('view3d.yp_panel_toggle', icon='SCRIPTWIN', text='').panel = 'shading_setting'
-        else:
-            row.alert=True
-            row.operator('view3d.yp_panel_toggle', icon='SCRIPTWIN', text='').panel = 'shading_setting'
-            row.alert=False
+        row.prop(space, 'viewport_shade', text='', expand=True)
+        if self.ypui.show_shading_settings:
 
             if space.viewport_shade == 'RENDERED':
                 box = self.layout.box()
@@ -175,12 +93,8 @@ class VIEW3D_PT_ypanel(bpy.types.Panel):
 
                 row = col.row(align=True)
                 row.prop(space, 'show_only_render')
-                if self.is_collapsed('viewport_visual_setting'):
-                    row.operator('view3d.yp_panel_toggle', icon='SCRIPTWIN', text='').panel = 'viewport_visual_setting'
-                else:
-                    row.alert=True
-                    row.operator('view3d.yp_panel_toggle', icon='SCRIPTWIN', text='').panel = 'viewport_visual_setting'
-                    row.alert=False
+                row.prop(self.ypui, 'show_viewport_visual_settings', text='', icon='SCRIPTWIN')
+                if self.ypui.show_viewport_visual_settings:
 
                     col = box.column()
                     inbox = col.box()
@@ -216,12 +130,8 @@ class VIEW3D_PT_ypanel(bpy.types.Panel):
                     col.prop(space, "show_textured_solid")
                     row = col.row(align=True)
                     row.prop(space, "use_matcap")
-                    if self.is_collapsed('matcap_setting'):
-                        row.operator('view3d.yp_panel_toggle', icon='SCRIPTWIN', text='').panel = 'matcap_setting'
-                    else:
-                        row.alert=True
-                        row.operator('view3d.yp_panel_toggle', icon='SCRIPTWIN', text='').panel = 'matcap_setting'
-                        row.alert=False
+                    row.prop(self.ypui, 'show_matcap_settings', text='', icon='SCRIPTWIN')
+                    if self.ypui.show_matcap_settings:
 
                         sub = col.column()
                         sub.active = space.use_matcap
@@ -237,12 +147,8 @@ class VIEW3D_PT_ypanel(bpy.types.Panel):
                     if space.region_3d.view_perspective == 'CAMERA':
                         row = col.row(align=True)
                         row.prop(space.fx_settings, "use_dof")
-                        if self.is_collapsed('dof_setting'):
-                            row.operator('view3d.yp_panel_toggle', icon='SCRIPTWIN', text='').panel = 'dof_setting'
-                        else:
-                            row.alert=True
-                            row.operator('view3d.yp_panel_toggle', icon='SCRIPTWIN', text='').panel = 'dof_setting'
-                            row.alert=False
+                        row.prop(self.ypui, 'show_dof_settings', text='', icon='SCRIPTWIN')
+                        if self.ypui.show_dof_settings:
 
                             cam = scene.camera.data
                             dof_options = cam.gpu_dof
@@ -271,12 +177,8 @@ class VIEW3D_PT_ypanel(bpy.types.Panel):
                     # SSAO
                     row = col.row(align=True)
                     row.prop(space.fx_settings, "use_ssao", text="Ambient Occlusion")
-                    if self.is_collapsed('ssao_setting'):
-                        row.operator('view3d.yp_panel_toggle', icon='SCRIPTWIN', text='').panel = 'ssao_setting'
-                    else:
-                        row.alert=True
-                        row.operator('view3d.yp_panel_toggle', icon='SCRIPTWIN', text='').panel = 'ssao_setting'
-                        row.alert=False
+                    row.prop(self.ypui, 'show_ssao_settings', text='', icon='SCRIPTWIN')
+                    if self.ypui.show_ssao_settings:
                         
                         col = box.column()
                         inbox = col.box()
@@ -294,12 +196,8 @@ class VIEW3D_PT_ypanel(bpy.types.Panel):
 
                     row = col.row(align=True)
                     row.prop(scene.render, 'use_simplify', text='Simplify')
-                    if self.is_collapsed('simplify_setting'):
-                        row.operator('view3d.yp_panel_toggle', icon='SCRIPTWIN', text='').panel = 'simplify_setting'
-                    else:
-                        row.alert=True
-                        row.operator('view3d.yp_panel_toggle', icon='SCRIPTWIN', text='').panel = 'simplify_setting'
-                        row.alert=False
+                    row.prop(self.ypui, 'show_simplify_settings', text='', icon='SCRIPTWIN')
+                    if self.ypui.show_simplify_settings:
 
                         col = box.column()
                         inbox = col.box()
@@ -314,12 +212,8 @@ class VIEW3D_PT_ypanel(bpy.types.Panel):
                 if space.region_3d.view_perspective != 'CAMERA':
                     row = col.row(align=True)
                     row.prop(space, 'lens')
-                    if self.is_collapsed('viewcam_setting'):
-                        row.operator('view3d.yp_panel_toggle', icon='SCRIPTWIN', text='').panel = 'viewcam_setting'
-                    else:
-                        row.alert=True
-                        row.operator('view3d.yp_panel_toggle', icon='SCRIPTWIN', text='').panel = 'viewcam_setting'
-                        row.alert=False
+                    row.prop(self.ypui, 'show_viewcam_settings', text='', icon='SCRIPTWIN')
+                    if self.ypui.show_viewcam_settings:
                         col = box.column()
                         inbox = col.box()
                         incol = inbox.column(align=True)
@@ -332,13 +226,11 @@ class VIEW3D_PT_ypanel(bpy.types.Panel):
         col = self.layout.column()
         row = col.row(align=True)
 
-        if self.is_collapsed('material_mask_recover'):
-            row.operator('view3d.yp_panel_toggle', icon='TRIA_RIGHT', text='', emboss=False).panel = 'material_mask_recover'
-            row.label('Material Override')
-            return
-
-        row.operator('view3d.yp_panel_toggle', icon='TRIA_DOWN', text='', emboss=False).panel = 'material_mask_recover'
+        icon = 'TRIA_DOWN' if self.ypui.show_material_mask_recover else 'TRIA_RIGHT'
+        row.prop(self.ypui, 'show_material_mask_recover', emboss=False, text='', icon=icon)
         row.label('Material Override')
+        if not self.ypui.show_material_mask_recover:
+            return
 
         box = col.box()
         col = box.column()
@@ -359,13 +251,11 @@ class VIEW3D_PT_ypanel(bpy.types.Panel):
         col = self.layout.column()
         row = col.row(align=True)
 
-        if self.is_collapsed('material_mask'):
-            row.operator('view3d.yp_panel_toggle', icon='TRIA_RIGHT', text='', emboss=False).panel = 'material_mask'
-            row.label('Material Override')
-            return
-        
-        row.operator('view3d.yp_panel_toggle', icon='TRIA_DOWN', text='', emboss=False).panel = 'material_mask'
+        icon = 'TRIA_DOWN' if self.ypui.show_material_mask else 'TRIA_RIGHT'
+        row.prop(self.ypui, 'show_material_mask', emboss=False, text='', icon=icon)
         row.label('Material Override')
+        if not self.ypui.show_material_mask:
+            return
 
         box = col.box()
         col = box.column()
@@ -454,14 +344,11 @@ class VIEW3D_PT_ypanel(bpy.types.Panel):
         row = col.row(align=True)
 
         # If material panel is collapsed
-        if self.is_collapsed('material_panel'):
-            row.operator('view3d.yp_panel_toggle', icon='TRIA_RIGHT', text='', emboss=False).panel = 'material_panel'
-            row.label('Materials')
-            return
-        
-        # Material panel is uncollapsed
-        row.operator('view3d.yp_panel_toggle', icon='TRIA_DOWN', text='', emboss=False).panel = 'material_panel'
+        icon = 'TRIA_DOWN' if self.ypui.show_material_panel else 'TRIA_RIGHT'
+        row.prop(self.ypui, 'show_material_panel', emboss=False, text='', icon=icon)
         row.label('Materials')
+        if not self.ypui.show_material_panel:
+            return
 
         box = col.box()
         row = box.row()
@@ -510,14 +397,9 @@ class VIEW3D_PT_ypanel(bpy.types.Panel):
                 if engine != 'CYCLES' and mo_mode != 'DIFFUSE':
                     row.prop(mat, "diffuse_intensity", text="")
 
-                    if self.is_collapsed('diffuse_setting'):
-                        row.operator('view3d.yp_panel_toggle', icon='SCRIPTWIN', text='').panel = 'diffuse_setting'
-                    else:
-                        row.alert=True
-                        row.operator('view3d.yp_panel_toggle', icon='SCRIPTWIN', text='').panel = 'diffuse_setting'
-                        row.alert=False
+                    row.prop(self.ypui, 'show_diffuse_settings', text='', icon='SCRIPTWIN')
+                    if self.ypui.show_diffuse_settings:
 
-                        #if mat.yp_props.show_diffuse_setting:
                         inbox = col.box()
                         incol = inbox.column()
                         incol.prop(mat, "diffuse_shader", text="")
@@ -555,12 +437,8 @@ class VIEW3D_PT_ypanel(bpy.types.Panel):
                     row.prop(mat, "specular_color", text="")
                     row.prop(mat, "specular_intensity", text="")
                 
-                    if self.is_collapsed('specular_setting'):
-                        row.operator('view3d.yp_panel_toggle', icon='SCRIPTWIN', text='').panel = 'specular_setting'
-                    else:
-                        row.alert=True
-                        row.operator('view3d.yp_panel_toggle', icon='SCRIPTWIN', text='').panel = 'specular_setting'
-                        row.alert=False
+                    row.prop(self.ypui, 'show_specular_settings', text='', icon='SCRIPTWIN')
+                    if self.ypui.show_specular_settings:
 
                         inbox = col.box()
                         incol = inbox.column()
@@ -595,14 +473,10 @@ class VIEW3D_PT_ypanel(bpy.types.Panel):
                 row = row.row(align=True)
                 row.active = mat.use_transparency
                 row.prop(mat, 'alpha', text='')
-                #row.prop(mat.yp_props, "show_transparency_setting", text="", icon='SCRIPTWIN')
+                #row.prop(mat.yp_ui, "show_transparency_setting", text="", icon='SCRIPTWIN')
 
-                if self.is_collapsed('alpha_setting'):
-                    row.operator('view3d.yp_panel_toggle', icon='SCRIPTWIN', text='').panel = 'alpha_setting'
-                else:
-                    row.alert=True
-                    row.operator('view3d.yp_panel_toggle', icon='SCRIPTWIN', text='').panel = 'alpha_setting'
-                    row.alert=False
+                row.prop(self.ypui, 'show_alpha_settings', text='', icon='SCRIPTWIN')
+                if self.ypui.show_alpha_settings:
 
                     rayt = mat.raytrace_transparency
                     game = mat.game_settings
@@ -638,14 +512,12 @@ class VIEW3D_PT_ypanel(bpy.types.Panel):
         col = self.layout.column()
         row = col.row(align=True)
 
-        if self.is_collapsed('paint_slots'):
-            row.operator('view3d.yp_panel_toggle', icon='TRIA_RIGHT', text='', emboss=False).panel = 'paint_slots'
-            row.label('Paint Slots')
-            return
-        
-        row.operator('view3d.yp_panel_toggle', icon='TRIA_DOWN', text='', emboss=False).panel = 'paint_slots'
+        icon = 'TRIA_DOWN' if self.ypui.show_paint_slots else 'TRIA_RIGHT'
+        row.prop(self.ypui, 'show_paint_slots', emboss=False, text='', icon=icon)
         row.label('Paint Slots')
-        
+        if not self.ypui.show_paint_slots:
+            return
+
         box = col.box()
 
         ## IF UV MAP NOT FOUND
@@ -749,12 +621,8 @@ class VIEW3D_PT_ypanel(bpy.types.Panel):
                         unlink='paint.yp_remove_texture_paint_slot')
             #if img.is_dirty:
             row.operator("image.yp_reload_texture_paint", text="", icon='FILE_REFRESH')
-            if self.is_collapsed('generated_image_setting'):
-                row.operator('view3d.yp_panel_toggle', icon='SCRIPTWIN', text='').panel = 'generated_image_setting'
-            else:
-                row.alert=True
-                row.operator('view3d.yp_panel_toggle', icon='SCRIPTWIN', text='').panel = 'generated_image_setting'
-                row.alert=False
+            row.prop(self.ypui, 'show_generated_image_settings', text='', icon='SCRIPTWIN')
+            if self.ypui.show_generated_image_settings:
 
                 inbox = col.box()
                 incol = inbox.column()
@@ -799,11 +667,6 @@ class VIEW3D_PT_ypanel(bpy.types.Panel):
                     incol.prop(img, 'use_alpha')
                     #incol.prop(img, 'use_fields')
                     #incol.template_image(tex, "image", tex.image_user)
-                    
-
-            #if mo_mode in {'NORMAL'}:
-            #    col.separator()
-            #else:
 
             row = col.row(align=True)
             row.label('Influences:')
@@ -863,14 +726,8 @@ class VIEW3D_PT_ypanel(bpy.types.Panel):
             col.separator()
             row = col.row(align=True)
             row.prop(mat.texture_slots[slot.index], "blend_type", text='Blend')
-            #row.prop(mat.yp_props, 'show_blend_setting', icon='SCRIPTWIN', text='')
-
-            if self.is_collapsed('blend_setting'):
-                row.operator('view3d.yp_panel_toggle', icon='SCRIPTWIN', text='').panel = 'blend_setting'
-            else:
-                row.alert=True
-                row.operator('view3d.yp_panel_toggle', icon='SCRIPTWIN', text='').panel = 'blend_setting'
-                row.alert=False
+            row.prop(self.ypui, 'show_blend_settings', text='', icon='SCRIPTWIN')
+            if self.ypui.show_blend_settings:
 
                 inbox = col.box()
                 incol = inbox.column()
@@ -886,12 +743,8 @@ class VIEW3D_PT_ypanel(bpy.types.Panel):
             row = col.row(align=True)
             row.prop_search(slot, "uv_layer", obj.data, "uv_textures", text="UV Map")
 
-            if self.is_collapsed('uv_setting'):
-                row.operator('view3d.yp_panel_toggle', icon='SCRIPTWIN', text='').panel = 'uv_setting'
-            else:
-                row.alert=True
-                row.operator('view3d.yp_panel_toggle', icon='SCRIPTWIN', text='').panel = 'uv_setting'
-                row.alert=False
+            row.prop(self.ypui, 'show_uv_settings', text='', icon='SCRIPTWIN')
+            if self.ypui.show_uv_settings:
 
                 inbox = col.box()
                 incol = inbox.column()
@@ -1069,13 +922,12 @@ class VIEW3D_PT_ypanel(bpy.types.Panel):
         col = self.layout.column()
         row = col.row(align=True)
 
-        if self.is_collapsed('bake_tools'):
-            row.operator('view3d.yp_panel_toggle', icon='TRIA_RIGHT', text='', emboss=False).panel = 'bake_tools'
-            row.label('Bake Tools')
-            return
-        
-        row.operator('view3d.yp_panel_toggle', icon='TRIA_DOWN', text='', emboss=False).panel = 'bake_tools'
+        icon = 'TRIA_DOWN' if self.ypui.show_bake_tools else 'TRIA_RIGHT'
+        row.prop(self.ypui, 'show_bake_tools', emboss=False, text='', icon=icon)
         row.label('Bake Tools')
+        if not self.ypui.show_bake_tools:
+            return
+
         box = col.box()
         col = box.column()
 
@@ -1083,12 +935,8 @@ class VIEW3D_PT_ypanel(bpy.types.Panel):
         row.operator('view3d.yp_bake_stuffs', text='Bake', icon='RENDER_STILL').type = settings.bake_type
 
         row.prop(settings, 'bake_type', text='')
-        if self.is_collapsed('bake_settings'):
-            row.operator('view3d.yp_panel_toggle', icon='SCRIPTWIN', text='').panel = 'bake_settings'
-        else:
-            row.alert = True
-            row.operator('view3d.yp_panel_toggle', icon='SCRIPTWIN', text='').panel = 'bake_settings'
-            row.alert = False
+        row.prop(self.ypui, 'show_bake_settings', text='', icon='SCRIPTWIN')
+        if self.ypui.show_bake_settings:
             if settings.bake_type == 'AO':
                 self.bake_ao_settings_panel(box)
             elif settings.bake_type == 'NORMALS':
@@ -1104,88 +952,12 @@ class VIEW3D_PT_ypanel(bpy.types.Panel):
             elif settings.bake_type == 'FULL_RENDER':
                 self.bake_full_render_settings_panel(box)
 
-        #col = box.column(align=True)
-
-        #row = col.row(align=True)
-        #row.operator('view3d.yp_bake_stuffs', text='Bake AO', icon='RENDER_STILL').type = 'AO'
-        #if self.is_collapsed('bake_ao_setting'):
-        #    row.operator('view3d.yp_panel_toggle', icon='SCRIPTWIN', text='').panel = 'bake_ao_setting'
-        #else:
-        #    row.alert = True
-        #    row.operator('view3d.yp_panel_toggle', icon='SCRIPTWIN', text='').panel = 'bake_ao_setting'
-        #    row.alert = False
-        #    self.bake_ao_settings_panel(box)
-        #    col = box.column(align=True)
-
-        #row = col.row(align=True)
-        #inrow = row.row(align=True)
-        ##inrow.enabled = bake_normal_possible
-        #inrow.operator('view3d.yp_bake_stuffs', text='Bake Normal', icon='RENDER_STILL').type = 'NORMALS'
-        #row = row.row(align=True)
-        ##row.enabled = True
-        #if self.is_collapsed('bake_normal_setting'):
-        #    row.operator('view3d.yp_panel_toggle', icon='SCRIPTWIN', text='').panel = 'bake_normal_setting'
-        #else:
-        #    row.alert = True
-        #    row.operator('view3d.yp_panel_toggle', icon='SCRIPTWIN', text='').panel = 'bake_normal_setting'
-        #    row.alert = False
-        #    self.bake_normals_settings_panel(box)
-        #    col = box.column(align=True)
-
-        #row = col.row(align=True)
-        #row.operator('view3d.yp_bake_stuffs', text='Bake Dirty Vertex Color', icon='RENDER_STILL').type = 'DIRTY'
-        #if self.is_collapsed('bake_vertex_color_setting'):
-        #    row.operator('view3d.yp_panel_toggle', icon='SCRIPTWIN', text='').panel = 'bake_vertex_color_setting'
-        #else:
-        #    row.alert = True
-        #    row.operator('view3d.yp_panel_toggle', icon='SCRIPTWIN', text='').panel = 'bake_vertex_color_setting'
-        #    row.alert = False
-        #    self.bake_dirty_vertex_color_settings_panel(box)
-        #    col = box.column(align=True)
-
-        #row = col.row(align=True)
-        #row.operator('view3d.yp_bake_stuffs', text='Bake Lights', icon='RENDER_STILL').type = 'LIGHTS'
-        #if self.is_collapsed('bake_lights_setting'):
-        #    row.operator('view3d.yp_panel_toggle', icon='SCRIPTWIN', text='').panel = 'bake_lights_setting'
-        #else:
-        #    row.alert = True
-        #    row.operator('view3d.yp_panel_toggle', icon='SCRIPTWIN', text='').panel = 'bake_lights_setting'
-        #    row.alert = False
-        #    self.bake_lights_settings_panel(box)
-        #    col = box.column(align=True)
-
-        #row = col.row(align=True)
-        #row.operator('view3d.yp_bake_stuffs', text='Bake Diffuse Color', icon='RENDER_STILL').type = 'DIFFUSE_COLOR'
-        #if self.is_collapsed('bake_diffuse_color_setting'):
-        #    row.operator('view3d.yp_panel_toggle', icon='SCRIPTWIN', text='').panel = 'bake_diffuse_color_setting'
-        #else:
-        #    row.alert = True
-        #    row.operator('view3d.yp_panel_toggle', icon='SCRIPTWIN', text='').panel = 'bake_diffuse_color_setting'
-        #    row.alert = False
-        #    self.bake_diffuse_color_settings_panel(box)
-        #    col = box.column(align=True)
-
-        #row = col.row(align=True)
-        #row.operator('view3d.yp_bake_stuffs', text='Bake Specular Color', icon='RENDER_STILL').type = 'SPECULAR_COLOR'
-        #if self.is_collapsed('bake_specular_color_setting'):
-        #    row.operator('view3d.yp_panel_toggle', icon='SCRIPTWIN', text='').panel = 'bake_specular_color_setting'
-        #else:
-        #    row.alert = True
-        #    row.operator('view3d.yp_panel_toggle', icon='SCRIPTWIN', text='').panel = 'bake_specular_color_setting'
-        #    row.alert = False
-        #    self.bake_specular_color_settings_panel(box)
-        #    #col = box.column(align=True)
-
         col = box.column()
 
         row = col.row(align=True)
         row.label('Global Bake Settings')
-        if self.is_collapsed('bake_global_setting'):
-            row.operator('view3d.yp_panel_toggle', icon='SCRIPTWIN', text='').panel = 'bake_global_setting'
-        else:
-            row.alert = True
-            row.operator('view3d.yp_panel_toggle', icon='SCRIPTWIN', text='').panel = 'bake_global_setting'
-            row.alert = False
+        row.prop(self.ypui, 'show_bake_global_settings', text='', icon='SCRIPTWIN')
+        if self.ypui.show_bake_global_settings:
 
             inbox = col.box()
             incol = inbox.column()
@@ -1225,13 +997,12 @@ class VIEW3D_PT_ypanel(bpy.types.Panel):
         col = self.layout.column()
         row = col.row(align=True)
 
-        if self.is_collapsed('symmetry_lock'):
-            row.operator('view3d.yp_panel_toggle', icon='TRIA_RIGHT', text='', emboss=False).panel = 'symmetry_lock'
-            row.label('Symmetry / Lock')
-            return
-        
-        row.operator('view3d.yp_panel_toggle', icon='TRIA_DOWN', text='', emboss=False).panel = 'symmetry_lock'
+        icon = 'TRIA_DOWN' if self.ypui.show_symmetry_lock else 'TRIA_RIGHT'
+        row.prop(self.ypui, 'show_symmetry_lock', emboss=False, text='', icon=icon)
         row.label('Symmetry / Lock')
+        if not self.ypui.show_symmetry_lock:
+            return
+
         box = col.box()
         col = box.column()
 
@@ -1267,13 +1038,12 @@ class VIEW3D_PT_ypanel(bpy.types.Panel):
         col = self.layout.column()
         row = col.row(align=True)
 
-        if self.is_collapsed('dyntopo_panel'):
-            row.operator('view3d.yp_panel_toggle', icon='TRIA_RIGHT', text='', emboss=False).panel = 'dyntopo_panel'
-            row.label('Dyntopo')
-            return
-        
-        row.operator('view3d.yp_panel_toggle', icon='TRIA_DOWN', text='', emboss=False).panel = 'dyntopo_panel'
+        icon = 'TRIA_DOWN' if self.ypui.show_dyntopo_panel else 'TRIA_RIGHT'
+        row.prop(self.ypui, 'show_dyntopo_panel', emboss=False, text='', icon=icon)
         row.label('Dyntopo')
+        if not self.ypui.show_dyntopo_panel:
+            return
+
         box = col.box()
         col = box.column()
 
@@ -1319,13 +1089,12 @@ class VIEW3D_PT_ypanel(bpy.types.Panel):
         col = self.layout.column()
         row = col.row(align=True)
 
-        if self.is_collapsed('multires_panel'):
-            row.operator('view3d.yp_panel_toggle', icon='TRIA_RIGHT', text='', emboss=False).panel = 'multires_panel'
-            row.label('Multires')
-            return
-        
-        row.operator('view3d.yp_panel_toggle', icon='TRIA_DOWN', text='', emboss=False).panel = 'multires_panel'
+        icon = 'TRIA_DOWN' if self.ypui.show_multires_panel else 'TRIA_RIGHT'
+        row.prop(self.ypui, 'show_multires_panel', emboss=False, text='', icon=icon)
         row.label('Multires')
+        if not self.ypui.show_multires_panel:
+            return
+
         box = col.box()
         col = box.column(align=True)
 
@@ -1385,13 +1154,12 @@ class VIEW3D_PT_ypanel(bpy.types.Panel):
         col = self.layout.column()
         row = col.row(align=True)
 
-        if self.is_collapsed('curve_panel'):
-            row.operator('view3d.yp_panel_toggle', icon='TRIA_RIGHT', text='', emboss=False).panel = 'curve_panel'
-            row.label('Curve')
-            return
-        
-        row.operator('view3d.yp_panel_toggle', icon='TRIA_DOWN', text='', emboss=False).panel = 'curve_panel'
+        icon = 'TRIA_DOWN' if self.ypui.show_curve_panel else 'TRIA_RIGHT'
+        row.prop(self.ypui, 'show_curve_panel', emboss=False, text='', icon=icon)
         row.label('Curve')
+        if not self.ypui.show_curve_panel:
+            return
+
         box = col.box()
         col = box.column()
 
@@ -1406,41 +1174,6 @@ class VIEW3D_PT_ypanel(bpy.types.Panel):
         row.operator("brush.curve_preset", icon='LINCURVE', text="").shape = 'LINE'
         row.operator("brush.curve_preset", icon='NOCURVE', text="").shape = 'MAX'
 
-    def populate_ids(self):
-
-        screen = bpy.context.screen
-        area = bpy.context.area
-
-        if screen.show_fullscreen:
-            screen = bpy.data.screens[screen.name[:-10]]
-            # Search for original id on non fullscreen screen
-            self.id = [i for i, a in enumerate(screen.areas) if (
-                    len(a.spaces) == 0 or (a.type == 'INFO' and i != 0)
-                    )][0]
-        else: self.id = [i for i, a in enumerate(screen.areas) if a == area][0]
-
-        # Create panel struct and dictionary of panels
-        class PanelStruct():
-            def __init__(self):
-                self.collapse = None
-                self.ids = None
-        self.panels = {}
-
-        # Populate dictionary of panels
-        prop_list = [prop for prop in dir(screen.yp_props) if 'collapsed_' in prop]
-        for prop in prop_list:
-
-            if prop.startswith('collapsed_'):
-                name = prop.replace('collapsed_', '')
-                collapse = True
-            else:
-                name = prop.replace('uncollapsed_', '')
-                collapse = False
-
-            self.panels[name] = PanelStruct()
-            self.panels[name].collapse = collapse
-            self.panels[name].ids = [int(i[2:]) for i in getattr(screen.yp_props, prop).split()]
-
     def draw(self, context):
 
         obj = context.object
@@ -1450,19 +1183,7 @@ class VIEW3D_PT_ypanel(bpy.types.Panel):
         gs = context.scene.game_settings 
         engine = scene.render.engine
 
-        self.populate_ids()
-
-        # Main panel
-        #row = self.layout.row(align=True)
-        #if self.is_collapsed('main_ypanel'):
-        #    row.operator('view3d.yp_panel_toggle', icon='RIGHTARROW', text='', emboss=False).panel = 'main_ypanel'
-        #    row.label('yPanel')
-        #    return
-        #
-        #row.operator('view3d.yp_panel_toggle', icon='DOWNARROW_HLT', text='', emboss=False).panel = 'main_ypanel'
-        #row.label('yPanel')
-
-        #self.object_panel()
+        self.ypui = context.window_manager.yp_ui
 
         self.mode_panel() # Mode panel
         self.shading_panel() # Shading panel
@@ -1637,53 +1358,58 @@ class ToggleUseSimplify(bpy.types.Operator):
         scene.render.use_simplify = not scene.render.use_simplify
         return {'FINISHED'}
 
+def copy_ui_settings(source, dest):
+    attrs = dir(source)
+    
+    for attr in attrs:
+        if attr.startswith('show_'):
+            setattr(dest, attr, getattr(source, attr))
+
+@persistent
+def save_ui_settings(scene):
+    wmui = bpy.context.window_manager.yp_ui
+    scui = bpy.context.scene.yp_ui
+    copy_ui_settings(wmui, scui)
+
+@persistent
+def load_ui_settings(scene):
+    wmui = bpy.context.window_manager.yp_ui
+    scui = bpy.context.scene.yp_ui
+    copy_ui_settings(scui, wmui)
+
 # PROPS
-class ScreenYPanelProps(bpy.types.PropertyGroup):
-    # Settings
-    uncollapsed_shading_setting = StringProperty(default='')
-    uncollapsed_diffuse_setting = StringProperty(default='')
-    uncollapsed_specular_setting = StringProperty(default='')
-    uncollapsed_alpha_setting = StringProperty(default='')
-    uncollapsed_generated_image_setting = StringProperty(default='')
-    uncollapsed_blend_setting = StringProperty(default='')
-    uncollapsed_uv_setting = StringProperty(default='')
+class YPanelUISettings(bpy.types.PropertyGroup):
+    show_shading_settings = BoolProperty(default=False)
+    show_diffuse_settings = BoolProperty(default=False)
+    show_specular_settings = BoolProperty(default=False)
+    show_alpha_settings = BoolProperty(default=False)
+    show_generated_image_settings = BoolProperty(default=False)
+    show_blend_settings = BoolProperty(default=False)
+    show_uv_settings = BoolProperty(default=False)
 
-    uncollapsed_bake_settings = StringProperty(default='')
-    uncollapsed_bake_global_setting = StringProperty(default='')
+    show_bake_settings = BoolProperty(default=False)
+    show_bake_global_settings = BoolProperty(default=False)
 
-    #uncollapsed_bake_ao_setting = StringProperty(default='')
-    #uncollapsed_bake_normal_setting = StringProperty(default='')
-    #uncollapsed_bake_vertex_color_setting = StringProperty(default='')
-    #uncollapsed_bake_lights_setting = StringProperty(default='')
-    #uncollapsed_bake_diffuse_color_setting = StringProperty(default='')
-    #uncollapsed_bake_specular_color_setting = StringProperty(default='')
+    show_viewport_visual_settings = BoolProperty(default=False)
+    show_ssao_settings = BoolProperty(default=False)
 
-    uncollapsed_viewport_visual_setting = StringProperty(default='')
-    uncollapsed_ssao_setting = StringProperty(default='')
-    uncollapsed_dof_setting = StringProperty(default='')
-    uncollapsed_matcap_setting = StringProperty(default='')
-    uncollapsed_viewcam_setting = StringProperty(default='')
-    uncollapsed_simplify_setting = StringProperty(default='')
+    show_dof_settings = BoolProperty(default=False)
+    show_matcap_settings = BoolProperty(default=False)
+    show_viewcam_settings = BoolProperty(default=False)
+    show_simplify_settings = BoolProperty(default=False)
 
-    # Main Panels
-    collapsed_shading_panel = StringProperty(default='')
-    collapsed_mode_panel = StringProperty(default='')
-    collapsed_material_mask_recover = StringProperty(default='')
+    show_material_mask_recover = BoolProperty(default=True)
+    show_material_mask = BoolProperty(default=False)
+    show_material_panel = BoolProperty(default=False)
+    show_paint_slots = BoolProperty(default=False)
+    show_bake_tools = BoolProperty(default=False)
 
-    uncollapsed_main_ypanel = StringProperty(default='')
-    uncollapsed_object_setting = StringProperty(default='')
-    uncollapsed_material_mask = StringProperty(default='')
-    uncollapsed_material_panel = StringProperty(default='')
-    uncollapsed_paint_slots = StringProperty(default='')
-    uncollapsed_bake_tools = StringProperty(default='')
+    show_symmetry_lock = BoolProperty(default=False)
+    show_curve_panel = BoolProperty(default=False)
+    show_dyntopo_panel = BoolProperty(default=False)
+    show_multires_panel = BoolProperty(default=False)
 
-    uncollapsed_symmetry_lock = StringProperty(default='')
-    uncollapsed_curve_panel = StringProperty(default='')
-    uncollapsed_dyntopo_panel = StringProperty(default='')
-    uncollapsed_multires_panel = StringProperty(default='')
-
-    # Header extra panel
-    uncollapsed_header_extra = StringProperty(default='')
+    show_header_extra = BoolProperty(default=False)
 
 # REGISTERS
 def register():
@@ -1696,8 +1422,8 @@ def register():
     bpy.utils.register_module(__name__)
 
     # Properties
-    bpy.types.Screen.yp_props = PointerProperty(type=ScreenYPanelProps)
-    #bpy.types.Material.yp_props = PointerProperty(type=MaterialYPanelProps)
+    bpy.types.WindowManager.yp_ui = PointerProperty(type=YPanelUISettings)
+    bpy.types.Scene.yp_ui = PointerProperty(type=YPanelUISettings)
 
     # Extras
     preferences.register()
@@ -1707,11 +1433,17 @@ def register():
     bake_tools.register()
     header_extras.register()
 
+    bpy.app.handlers.save_pre.append(save_ui_settings)
+    bpy.app.handlers.load_post.append(load_ui_settings)
+
 def unregister():
+    bpy.app.handlers.save_pre.remove(save_ui_settings)
+    bpy.app.handlers.load_post.remove(load_ui_settings)
+    
     # Custom Icon
     global custom_icons
     bpy.utils.previews.remove(custom_icons)
-    
+
     # Extras
     preferences.unregister()
     save_and_pack.unregister()
