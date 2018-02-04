@@ -1359,9 +1359,7 @@ class ToggleUseSimplify(bpy.types.Operator):
         return {'FINISHED'}
 
 def copy_ui_settings(source, dest):
-    attrs = dir(source)
-    
-    for attr in attrs:
+    for attr in dir(source):
         if attr.startswith('show_'):
             setattr(dest, attr, getattr(source, attr))
 
@@ -1409,7 +1407,7 @@ class YPanelUISettings(bpy.types.PropertyGroup):
     show_dyntopo_panel = BoolProperty(default=False)
     show_multires_panel = BoolProperty(default=False)
 
-    show_header_extra = BoolProperty(default=False)
+    show_header_extra = BoolProperty(default=True)
 
 # REGISTERS
 def register():
@@ -1417,6 +1415,7 @@ def register():
     global custom_icons
     custom_icons = bpy.utils.previews.new()
     custom_icons.load('asterisk', get_addon_filepath() + 'asterisk_icon.png', 'IMAGE')
+    #custom_icons.load('matcap', get_addon_filepath() + 'matcap_icon.png', 'IMAGE')
 
     # Operators
     bpy.utils.register_module(__name__)

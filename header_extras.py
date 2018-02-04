@@ -25,7 +25,130 @@ shade_dict = {
         'RENDERED': 'Rendered'
         }
 
-class ToggleWire(bpy.types.Operator):
+def matcap_items(self, context):
+    items = []
+    for i in range(1,25):
+        items.append((str(i).zfill(2), 'Matcap ' + str(i), '', 'MATCAP_' + str(i).zfill(2), i))
+    return items
+
+class YPSetMatcap(bpy.types.Operator):
+    bl_idname = "view3d.yp_set_matcap"
+    bl_label = "Set Matcap"
+    bl_description = "Set Matcap"
+
+    matcap = EnumProperty(
+            name = 'Matcap',
+            description = 'Matcap',
+            items = matcap_items
+            )
+
+    @classmethod
+    def poll(cls, context):
+        return context.area.type == 'VIEW_3D'
+
+    def execute(self, context):
+        space = context.space_data
+        space.matcap_icon = self.matcap
+        return {'FINISHED'}
+
+class YPDOFSettings(bpy.types.Operator):
+    bl_idname = "view3d.yp_dof_settings"
+    #bl_label = "DOF Settings (Don't forget to press OK to apply)"
+    bl_label = "DOF Settings"
+    bl_description = "DOF Settings"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    @classmethod
+    def poll(cls, context):
+        return context.area.type == 'VIEW_3D'
+
+    def invoke(self, context, event):
+        return context.window_manager.invoke_props_dialog(self, width=220)
+
+    def draw(self, context):
+        scene = context.scene
+        space = context.space_data
+        cam = scene.camera.data
+        
+        col = self.layout.column()
+
+        split = col.split(percentage=0.3)
+        split.label(text="Focus:")
+        split.prop(cam, "dof_object", text="")
+        sub = col.column()
+        sub.active = (cam.dof_object is None)
+        sub.prop(cam, "dof_distance", text="Distance")
+
+        hq_support = cam.gpu_dof.is_hq_supported
+        sub = col.column()
+        sub.active = hq_support
+        sub.prop(cam.gpu_dof, "use_high_quality")
+        col.prop(cam.gpu_dof, "fstop")
+
+        if cam.gpu_dof.use_high_quality and hq_support:
+            col.prop(cam.gpu_dof, "blades")
+        else: col.label('')
+
+        self.layout.label("Don't forget to press OK to apply", icon='ERROR')
+
+    def check(self, context):
+        return True
+
+    def execute(self, context):
+        scene = context.scene
+        space = context.space_data
+        cam = scene.camera.data
+
+        cam.dof_object = cam.dof_object
+        cam.dof_distance = cam.dof_distance
+        cam.gpu_dof.use_high_quality = cam.gpu_dof.use_high_quality
+        cam.gpu_dof.fstop = cam.gpu_dof.fstop
+        cam.gpu_dof.blades = cam.gpu_dof.blades
+
+        return{'FINISHED'}
+
+class YPAOSettings(bpy.types.Operator):
+    bl_idname = "view3d.yp_ao_settings"
+    bl_label = "AO Settings"
+    bl_description = "AO Settings"
+
+    @classmethod
+    def poll(cls, context):
+        return context.area.type == 'VIEW_3D'
+
+    def draw(self, context):
+        space = context.space_data
+        col = self.layout.column(align=True)
+        ssao_settings = space.fx_settings.ssao
+
+        if ssao_settings:
+            col.prop(ssao_settings, "factor")
+            col.prop(ssao_settings, "distance_max")
+            col.prop(ssao_settings, "attenuation")
+            col.prop(ssao_settings, "samples")
+            col.prop(ssao_settings, "color")
+
+    def execute(self, context):
+        return context.window_manager.invoke_popup(self, width=180) 
+
+class YPMatcapMenu(bpy.types.Menu):
+    bl_idname = "VIEW3D_PT_yp_matcap_menu"
+    bl_description = 'Matcap'
+    bl_label = "Matcap"
+
+    @classmethod
+    def poll(cls, context):
+        return context.area.type == 'VIEW_3D'
+
+    def draw(self, context):
+        row = self.layout.row()
+        col = row.column()
+        for i in range(1,25):
+            if i == 13: col = row.column()
+            col.operator('view3d.yp_set_matcap', text='Matcap ' + str(i), icon='MATCAP_' + str(i).zfill(2)
+                    ).matcap = str(i).zfill(2)
+
+class YPToggleWire(bpy.types.Operator):
     bl_idname = "view3d.yp_toggle_display_wire"
     bl_label = "Toggle Display Wire"
     bl_description = "Toggle Display Wire"
@@ -134,13 +257,55 @@ def viewport_header_addition(self, context):
 
     layout = self.layout
 
+    #layout.label('', icon='BLANK1')
+
     icon = 'TRIA_RIGHT' if ypui.show_header_extra else 'TRIA_DOWN'
     layout.prop(ypui, 'show_header_extra', emboss=False, text='', icon=icon)
     if not ypui.show_header_extra:
         return
 
-    layout.prop(space, 'viewport_shade', text='', expand=True)
-    layout.label('Shading: ' + shade_dict[space.viewport_shade])
+    if space.viewport_shade == 'RENDERED':
+        layout.label('No settings for rendered view!')
+        return
+
+    #layout.prop(space, 'viewport_shade', text='', expand=True)
+    #layout.label('Shading: ' + shade_dict[space.viewport_shade])
+
+    row = layout.row(align=True)
+    row.prop(space, 'show_only_render', text='', icon='SMOOTH')
+    row.prop(space, "show_world", text='', icon='WORLD')
+    row.prop(space, "show_backface_culling", text='', icon='MOD_WIREFRAME')
+
+    if scene.render.engine in {'BLENDER_RENDER', 'BLENDER_GAME'}: 
+        if space.viewport_shade == 'TEXTURED' and gs.material_mode == 'MULTITEXTURE':
+            row.prop(space, "show_textured_shadeless", text='', icon='POTATO')
+
+    if space.viewport_shade == 'SOLID':
+        row.prop(space, "show_textured_solid", text='', icon='TEXTURE_SHADED')
+
+    row = layout.row(align=True)
+    row.prop(space.fx_settings, "use_ssao", text="", icon_value=custom_icons['ao'].icon_id)
+    if space.fx_settings.use_ssao:
+        row.operator('view3d.yp_ao_settings', text='', icon='SCRIPTWIN')
+
+    if space.viewport_shade == 'SOLID':
+        row = layout.row(align=True)
+        row.prop(space, "use_matcap", text='', icon_value=custom_icons["matcap"].icon_id)
+        if space.use_matcap:
+            row.menu('VIEW3D_PT_yp_matcap_menu', icon='MATCAP_' + space.matcap_icon, text='')
+
+    if space.region_3d.view_perspective == 'CAMERA':
+        row = layout.row(align=True)
+        row.prop(space.fx_settings, "use_dof", text='', icon_value=custom_icons['dof'].icon_id)
+        if space.fx_settings.use_dof:
+            row.operator('view3d.yp_dof_settings', text='', icon='SCRIPTWIN')
+
+    row = layout.row()
+    row.enabled = not space.show_only_render
+    #if not space.show_only_render:
+    row.operator('view3d.yp_toggle_display_wire', text='', icon='WIRE')
+
+    #layout.prop(scene, "frame_current", text="Frame")
 
     if scene.render.engine in {'BLENDER_RENDER', 'BLENDER_GAME'}: 
         if space.viewport_shade == 'TEXTURED':
@@ -163,36 +328,6 @@ def viewport_header_addition(self, context):
             layout.alert = True
             layout.operator('material.yp_override_material', icon='CANCEL', text='Recover Material').mode = 'OFF'
             layout.alert = False
-
-        if space.viewport_shade == 'TEXTURED' and gs.material_mode == 'MULTITEXTURE':
-            layout.prop(space, "show_textured_shadeless")
-
-    layout.prop(space, 'show_only_render')
-    layout.prop(space, "show_world")
-
-    if space.viewport_shade == 'SOLID':
-        layout.prop(space, "use_matcap")
-        layout.prop(space, "show_textured_solid")
-
-    layout.prop(space, "show_backface_culling")
-
-    layout.prop(space.fx_settings, "use_ssao", text="AO")
-
-    if space.region_3d.view_perspective == 'CAMERA':
-        layout.prop(space.fx_settings, "use_dof", text='DOF')
-
-    row = layout.row(align=True)
-    #row.prop(scene.render, 'use_simplify', text='', icon='MOD_DECIM')
-    row.prop(scene.render, 'use_simplify', text='Simplify')
-    if scene.render.use_simplify:
-        row.prop(scene.render, 'simplify_subdivision', text='Level')
-    
-    row = layout.row()
-    row.enabled = not space.show_only_render
-    #if not space.show_only_render:
-    row.operator('view3d.yp_toggle_display_wire', text='Wire')
-
-    layout.prop(scene, "frame_current", text="Frame")
 
 def modified_global_header(self, context):
     layout = self.layout
@@ -258,7 +393,14 @@ def modified_global_header(self, context):
 original_global_header = bpy.types.INFO_HT_header.draw
 
 def register():
-    pass
+    # Custom Icon
+    global custom_icons
+    custom_icons = bpy.utils.previews.new()
+    custom_icons.load('matcap', get_addon_filepath() + 'matcap_icon.png', 'IMAGE')
+    custom_icons.load('ao', get_addon_filepath() + 'ao_icon.png', 'IMAGE')
+    custom_icons.load('dof', get_addon_filepath() + 'dof_icon.png', 'IMAGE')
 
 def unregister():
-    pass
+    # Custom Icon
+    global custom_icons
+    bpy.utils.previews.remove(custom_icons)
