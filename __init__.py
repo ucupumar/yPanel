@@ -380,16 +380,12 @@ class VIEW3D_PT_ypanel(bpy.types.Panel):
         box = col.box()
         row = box.row()
         col = row.column()
-        #if len(obj.material_slots) < 2:
-        #    col.template_list("MATERIAL_UL_custom_matslots", "", obj, "material_slots", obj, "active_material_index", rows=3)
-        #else:
-        col.template_list("MATERIAL_UL_custom_matslots", "", obj, "material_slots", obj, "active_material_index", rows=4)
-        #col.template_list("MATERIAL_UL_matslots", "", obj, "material_slots", obj, "active_material_index", rows=3)
+        col.template_list("MATERIAL_UL_yp_matslots", "", obj, "material_slots", 
+                obj, "active_material_index", rows=4)
         col = row.column(align=True)
-        #col.operator("object.material_slot_add", icon='ZOOMIN', text="")
+
         col.operator("material.yp_new", icon='ZOOMIN', text="")
         col.operator("object.material_slot_remove", icon='ZOOMOUT', text="")
-        #if len(obj.material_slots) > 1:
 
         col.operator("object.material_slot_move", icon='TRIA_UP', text="").direction = 'UP'
         col.operator("object.material_slot_move", icon='TRIA_DOWN', text="").direction = 'DOWN'
@@ -572,7 +568,7 @@ class VIEW3D_PT_ypanel(bpy.types.Panel):
                     break
 
         row = box.row()
-        row.template_list("TEXTURE_UL_custom_paint_slots", "", mat, "texture_paint_images",
+        row.template_list("TEXTURE_UL_yp_paint_slots", "", mat, "texture_paint_images",
                              mat, "paint_active_slot", rows=6)
         col = row.column(align=True)
 
@@ -1269,7 +1265,7 @@ class VIEW3D_PT_ypanel(bpy.types.Panel):
                 self.dyntopo_panel()
 
 # UI LIST
-class MATERIAL_UL_custom_matslots(bpy.types.UIList):
+class MATERIAL_UL_yp_matslots(bpy.types.UIList):
     def draw_item(self, context, layout, data, item, icon, active_data, active_propname):
         sce = context.scene
         ob = data
@@ -1294,7 +1290,7 @@ class MATERIAL_UL_custom_matslots(bpy.types.UIList):
             layout.alignment = 'CENTER'
             layout.label(text="", icon_value=icon)
 
-class TEXTURE_UL_custom_paint_slots(bpy.types.UIList):
+class TEXTURE_UL_yp_paint_slots(bpy.types.UIList):
     global custom_icons
     def draw_item(self, context, layout, data, item, icon, active_data, active_propname, index):
         mat = context.object.active_material
@@ -1445,7 +1441,6 @@ class YPanelUISettings(bpy.types.PropertyGroup):
     show_header_extra = BoolProperty(default=True)
 
     expand_dyntopo_refine_method = BoolProperty(default=False)
-    #expand_dyntopo_type_method = BoolProperty(default=False)
 
 # REGISTERS
 def register():

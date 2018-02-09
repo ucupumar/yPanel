@@ -436,7 +436,7 @@ def add_tex_to_last_texture_slot(mat, tex, tex_coords='UV'):
         new_ts.texture = tex
         new_ts.texture_coords = tex_coords
 
-class ChangeActiveViewportMaterialOverride(bpy.types.Operator):
+class YPChangeActiveViewportMaterialOverride(bpy.types.Operator):
     bl_idname = "view3d.yp_change_view_id"
     bl_label = "Change active viewport"
     bl_description = "Change active viewport index for material override"
@@ -451,7 +451,7 @@ class ChangeActiveViewportMaterialOverride(bpy.types.Operator):
         screen.mo_props.active_index = [i for i, a in enumerate(screen.areas) if a == area][0]
         return {'FINISHED'}
 
-class RefreshPaintSlots(bpy.types.Operator):
+class YPRefreshPaintSlots(bpy.types.Operator):
     bl_idname = "material.yp_refresh_paint_slots"
     bl_label = "Refresh Texture Paint Slots"
     bl_description = "Refresh Texture Paint Slots"
@@ -616,7 +616,7 @@ def make_image_editor_use_image_from_active_material(mode):
         if a.type == 'IMAGE_EDITOR' and not space.use_image_pin:
             space.image = img
 
-class OverrideMaterialMenuEnum(bpy.types.Operator):
+class YPOverrideMaterialMenuEnum(bpy.types.Operator):
     bl_idname = "material.yp_override_material_menu_enum"
     bl_label = "Toggle Matcap Material Menu"
     bl_description = "Toggle all materials to use special material"
@@ -641,7 +641,7 @@ class OverrideMaterialMenuEnum(bpy.types.Operator):
         bpy.ops.material.yp_override_material(mode=self.mode)
         return {'FINISHED'}
 
-class OverrideMaterial(bpy.types.Operator):
+class YPOverrideMaterial(bpy.types.Operator):
     bl_idname = "material.yp_override_material"
     bl_label = "Toggle Matcap Material"
     bl_description = "Toggle all materials to use special material"
@@ -873,10 +873,10 @@ def draw_material_recover_panel(self, context):
 
 # PROPS
 
-class ScreenMaterialOverrideProps(bpy.types.PropertyGroup):
+class YPScreenMaterialOverrideProps(bpy.types.PropertyGroup):
     active_index = IntProperty(default=-1)
 
-class SceneMaterialOverrideProps(bpy.types.PropertyGroup):
+class YPSceneMaterialOverrideProps(bpy.types.PropertyGroup):
     override_mode = EnumProperty(
         items = (('DIFFUSE', "Diffuse", ""),
                  ('DIFFUSE_SHADED', "Diffuse Shaded", ""),
@@ -896,10 +896,10 @@ class SceneMaterialOverrideProps(bpy.types.PropertyGroup):
     active_object_name = StringProperty(default='')
     halt_update = BoolProperty(default=False)
 
-class ObjectMaterialOverideProps(bpy.types.PropertyGroup):
+class YPObjectMaterialOverideProps(bpy.types.PropertyGroup):
     active_material_name = StringProperty(default='')
 
-class MaterialOverrideProps(bpy.types.PropertyGroup):
+class YPMaterialOverrideProps(bpy.types.PropertyGroup):
     original_use_shadeless = BoolProperty(default=False)
     original_use_nodes = BoolProperty(default=False)
     original_use_transparency = BoolProperty(default=False)
@@ -918,15 +918,18 @@ class MaterialOverrideProps(bpy.types.PropertyGroup):
     selected_image = StringProperty(default='')
 
 def register():
-    bpy.types.Material.mo_props = PointerProperty(type=MaterialOverrideProps)
-    bpy.types.Scene.mo_props = PointerProperty(type=SceneMaterialOverrideProps)
-    bpy.types.Screen.mo_props = PointerProperty(type=ScreenMaterialOverrideProps)
-    bpy.types.Object.mo_props = PointerProperty(type=ObjectMaterialOverideProps)
+    bpy.types.Material.mo_props = PointerProperty(type=YPMaterialOverrideProps)
+    bpy.types.Scene.mo_props = PointerProperty(type=YPSceneMaterialOverrideProps)
+    bpy.types.Screen.mo_props = PointerProperty(type=YPScreenMaterialOverrideProps)
+    bpy.types.Object.mo_props = PointerProperty(type=YPObjectMaterialOverideProps)
+
     bpy.app.handlers.scene_update_pre.append(change_matcap_event)
+
     bpy.types.MATERIAL_PT_context_material.append(draw_material_recover_panel)
     bpy.types.TEXTURE_PT_context_texture.append(draw_material_recover_panel)
 
 def unregister():
     bpy.app.handlers.scene_update_pre.remove(change_matcap_event)
+
     bpy.types.MATERIAL_PT_context_material.remove(draw_material_recover_panel)
     bpy.types.TEXTURE_PT_context_texture.remove(draw_material_recover_panel)

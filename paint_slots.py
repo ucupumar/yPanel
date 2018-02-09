@@ -100,7 +100,7 @@ def get_active_image():
     img = mat.texture_paint_images[mat.paint_active_slot]
     return img
 
-class MatchTextureNameToImage(bpy.types.Operator):
+class YPMatchTextureNameToImage(bpy.types.Operator):
     bl_idname = "paint.yp_match_texture_name_to_image_name"
     bl_label = "Match all texture name to image name"
     bl_description = "Match all texture name to image name (can be helpful for searching texture on node editor"
@@ -117,7 +117,7 @@ class MatchTextureNameToImage(bpy.types.Operator):
                 tex.name = tex.image.name
         return {'FINISHED'}
 
-class AddSimpleUVs(bpy.types.Operator):
+class YPAddSimpleUVs(bpy.types.Operator):
     bl_idname = "mesh.yp_add_simple_uvs"
     bl_label = "Add simple UVs"
     bl_description = "Add Simple UVs"
@@ -150,7 +150,7 @@ class AddSimpleUVs(bpy.types.Operator):
 
         return {'FINISHED'}
 
-class DuplicateOtherPaintSlots(bpy.types.Operator):
+class YPDuplicateOtherPaintSlots(bpy.types.Operator):
     bl_idname = "paint.yp_duplicate_other_material_paint_slots"
     bl_label = "Duplicate Paint Slots from other Material"
     bl_description = "Duplicate Paint Slots from other Material"
@@ -201,7 +201,7 @@ class DuplicateOtherPaintSlots(bpy.types.Operator):
 
         return {'FINISHED'}
 
-class DuplicateSlot(bpy.types.Operator):
+class YPDuplicateSlot(bpy.types.Operator):
     bl_idname = "paint.yp_duplicate_texture_paint_slot"
     bl_label = "Duplicate Selected Texture Paint Slot"
     bl_description = "Duplicate Selected Texture Paint Slot"
@@ -245,7 +245,7 @@ class DuplicateSlot(bpy.types.Operator):
 
         return {'FINISHED'}
 
-class RemoveSlot(bpy.types.Operator):
+class YPRemoveSlot(bpy.types.Operator):
     bl_idname = "paint.yp_remove_texture_paint_slot"
     bl_label = "Remove selected texture paint slot"
     bl_description = "Remove selected texture paint slot"
@@ -273,7 +273,7 @@ class RemoveSlot(bpy.types.Operator):
 
         return {'FINISHED'}
 
-class RemoveSlotWithPrompt(bpy.types.Operator):
+class YPRemoveSlotWithPrompt(bpy.types.Operator):
     bl_idname = "paint.yp_remove_texture_paint_slot_with_prompt"
     bl_label = "Remove selected texture paint slot with prompt"
     bl_description = "Remove selected texture paint slot"
@@ -299,7 +299,7 @@ class RemoveSlotWithPrompt(bpy.types.Operator):
         mat.paint_active_slot = min(idx, len(mat.texture_paint_images)-1)
         return {'FINISHED'}
 
-class OpenPaintTextureFromFile(bpy.types.Operator, ImportHelper):
+class YPOpenPaintTextureFromFile(bpy.types.Operator, ImportHelper):
     bl_idname = "paint.yp_open_paint_texture_from_file"
     bl_label = "Import Textures"
     bl_description = "Add Paint Texture From File"
@@ -388,7 +388,7 @@ class OpenPaintTextureFromFile(bpy.types.Operator, ImportHelper):
     def generate_paths(self):
         return (fn.name for fn in self.files), self.directory
 
-class ToggleUseNodes(bpy.types.Operator):
+class YPToggleUseNodes(bpy.types.Operator):
     bl_idname = "material.yp_disable_use_nodes"
     bl_label = "Disable Use Nodes"
     bl_description = "Disable material nodes for this material"
@@ -420,7 +420,7 @@ class ToggleUseNodes(bpy.types.Operator):
 
         return {'FINISHED'}
 
-class DuplicateMaterial(bpy.types.Operator):
+class YPDuplicateMaterial(bpy.types.Operator):
     bl_idname = "material.yp_duplicate_to_non_node_material"
     bl_label = "Duplicate to non-node material"
     bl_description = "Duplicate material and disable use nodes on newly created material"
@@ -455,7 +455,7 @@ class DuplicateMaterial(bpy.types.Operator):
 
         return {'FINISHED'}
 
-class MakeIndependentMaterialCopy(bpy.types.Operator):
+class YPMakeIndependentMaterialCopy(bpy.types.Operator):
     bl_idname = "material.yp_make_independent_copy"
     bl_label = "Make independent copy"
     bl_description = "Make independent copy of this material with independent textures and paint slots"
@@ -576,7 +576,7 @@ def add_new_paint_slot(mat, img, influence, override_mode, blend_type = 'MIX', u
 
     return slot
 
-class NewSlot(bpy.types.Operator):
+class YPNewSlot(bpy.types.Operator):
     bl_idname = "paint.yp_add_slot_with_context"
     bl_label = "Add New Texture Paint Slot"
     bl_description = "Add new texture paint slot"
@@ -802,7 +802,7 @@ class NewSlot(bpy.types.Operator):
 
         return {'FINISHED'}
 
-class AddMaskFromOtherMaterial(bpy.types.Operator):
+class YPAddMaskFromOtherMaterial(bpy.types.Operator):
     bl_idname = "paint.yp_add_mask_from_other_material"
     bl_label = "Add mask paint slot from other material face"
     bl_description = "Add mask paint slot from other material face"
@@ -1028,7 +1028,7 @@ class AddMaskFromOtherMaterial(bpy.types.Operator):
 
         return {'FINISHED'}
 
-class AddSlotWithAvailableImage(bpy.types.Operator):
+class YPAddSlotWithAvailableImage(bpy.types.Operator):
     bl_idname = "paint.yp_add_slot_with_available_image"
     bl_label = "Add Paint Slot with Available Image"
     bl_description = "Add new paint slot with available image"
@@ -1106,10 +1106,6 @@ class AddSlotWithAvailableImage(bpy.types.Operator):
         mat.paint_active_slot = [i for i, ps in enumerate(mat.texture_paint_images) if ps == img][0]
         
         return {'FINISHED'}
-
-class IMAGE_UL_all_images(bpy.types.UIList):
-    pass
-    #def draw_item(self):
 
 def merge_texture_slot_using_render_non_mix(tslot_1, tslot_2):
     base_image = tslot_1.texture.image
@@ -1364,7 +1360,7 @@ def merge_texture_slot_using_bake(ts_list):
     # Delete baked image
     bpy.data.images.remove(baked_img, do_unlink=True)
 
-class MergeSlotBake(bpy.types.Operator):
+class YPMergeSlotBake(bpy.types.Operator):
     bl_idname = "paint.yp_merge_slot_bake"
     bl_label = "Merge Paint Slot"
     bl_description = "Merge paint slot"
@@ -1535,7 +1531,7 @@ def get_active_texture_slot():
     ts = mat.texture_slots[ts_idx]
     return ts
 
-class ResizePaintSlot(bpy.types.Operator):
+class YPResizePaintSlot(bpy.types.Operator):
     bl_idname = "paint.yp_resize_paint_slot"
     bl_label = "Resize paint slot"
     bl_description = "Resize paint slot"
@@ -1548,7 +1544,7 @@ class ResizePaintSlot(bpy.types.Operator):
     def execute(self, context):
         return {'FINISHED'}
 
-class BakeImageToAnotherUV(bpy.types.Operator):
+class YPBakeImageToAnotherUV(bpy.types.Operator):
     bl_idname = "paint.yp_bake_image_to_another_uv"
     bl_label = "Convert image(s) to other UV"
     bl_description = "Convert image(s) to other UV"
@@ -1825,7 +1821,7 @@ def reset_force_visible_influences(mat, idx):
 
 # --- End of force visible influence stuff
 
-class ToggleForceVisibleInfluence(bpy.types.Operator):
+class YPToggleForceVisibleInfluence(bpy.types.Operator):
     bl_idname = "paint.yp_toggle_force_visible_influence"
     bl_label = "Toggle Hide Influence"
     bl_description = "Toggle Hide Influence"
@@ -1865,7 +1861,7 @@ class ToggleForceVisibleInfluence(bpy.types.Operator):
 
         return {'FINISHED'}
 
-class RemoveInfluence(bpy.types.Operator):
+class YPRemoveInfluence(bpy.types.Operator):
     bl_idname = "texture.yp_remove_influence"
     bl_label = "Remove Influence"
     bl_description = "Remove Influence"
@@ -1902,7 +1898,7 @@ class RemoveInfluence(bpy.types.Operator):
             
         return{'FINISHED'}
 
-class ToggleNormalBump(bpy.types.Operator):
+class YPToggleNormalBump(bpy.types.Operator):
     bl_idname = "texture.yp_toggle_normal_bump"
     bl_label = "Toggle Normal Bump"
     bl_description = "Toggle normal or bump for normal Influence"
@@ -1922,7 +1918,7 @@ class ToggleNormalBump(bpy.types.Operator):
 
         return{'FINISHED'}
 
-class AddInfluence(bpy.types.Operator):
+class YPAddInfluence(bpy.types.Operator):
     bl_idname = "texture.yp_add_new_influence"
     bl_label = "Add new texture influence"
     bl_description = "Add new texture influence"
@@ -1953,7 +1949,7 @@ class AddInfluence(bpy.types.Operator):
 
         return{'FINISHED'}
 
-class PaintSlotMove(bpy.types.Operator):
+class YPPaintSlotMove(bpy.types.Operator):
     bl_idname = "paint.yp_slot_move"
     bl_label = "Move Texture Paint Slot"
     bl_description = "Move paint slot up and down"
@@ -2036,7 +2032,7 @@ class PaintSlotMove(bpy.types.Operator):
 
         return {'FINISHED'}
 
-class NewMaterial(bpy.types.Operator):
+class YPNewMaterial(bpy.types.Operator):
     bl_idname = "material.yp_new"
     bl_label = "Add new material"
     bl_description = "Add new material"
@@ -2143,29 +2139,17 @@ def update_node_mat_image_texpaint(scene):
                 obj.data.uv_textures.active_index = i
                 break
 
-class ImagePaintSlotsProps(bpy.types.PropertyGroup):
+class YPImagePaintSlotsProps(bpy.types.PropertyGroup):
     original_packed = BoolProperty(default=False)
 
-class MaterialPaintSlotProps(bpy.types.PropertyGroup):
+class YPMaterialPaintSlotProps(bpy.types.PropertyGroup):
     force_visible_influences = StringProperty(default='')
     last_paint_active_slot = IntProperty(default=0)
     last_texture_paint_slots_len = IntProperty(default=0)
     data_loss = BoolProperty(default=False)
 
-class TextureExtras(bpy.types.PropertyGroup):
-    channel = EnumProperty(
-        items = (('use_map_color_diffuse', "Diffuse Color", ""),
-                 ('use_map_color_spec', "Specular Color", ""),
-                 ('use_map_normal', "Normal", "")),
-        default = 'use_map_color_diffuse')
-
 # PANEL EXTRAS
-def draw_viewport_shade_switcher(self, context):
-    space = context.space_data
-    row = self.layout.row()
-    row.prop(space, 'viewport_shade', expand=True, icon_only=True)
-
-class MaterialSpecialMenu(bpy.types.Menu):
+class YPMaterialSpecialMenu(bpy.types.Menu):
     bl_idname = "MATERIAL_MT_yp_materials_specials"
     bl_label = "Material Special Menu"
 
@@ -2173,7 +2157,7 @@ class MaterialSpecialMenu(bpy.types.Menu):
         layout = self.layout
         layout.operator("material.yp_make_independent_copy", text="Make Independent Copy", icon='MATERIAL')
 
-class PaintTextureSpecialMenu(bpy.types.Menu):
+class YPPaintTextureSpecialMenu(bpy.types.Menu):
     bl_idname = "MATERIAL_MT_yp_texture_paint_specials"
     bl_label = "Texture Paint Special Menu"
 
@@ -2183,34 +2167,30 @@ class PaintTextureSpecialMenu(bpy.types.Menu):
         obj = context.object
         mat = obj.active_material
 
-        #layout.operator("paint.merge_slot", text="Merge Up", icon='TRIA_UP').type = 'UP'
-        #layout.operator("paint.merge_slot", text="Merge Down", icon='TRIA_DOWN').type = 'DOWN'
         layout.operator("paint.yp_merge_slot_bake", text="Merge Up", icon='TRIA_UP').type = 'UP'
         #layout.operator("paint.yp_merge_slot_bake", text="Merge Down", icon='TRIA_DOWN').type = 'DOWN'
+
         layout.operator("paint.yp_duplicate_texture_paint_slot", text="Duplicate", icon='COPY_ID')
-        layout.operator("paint.yp_bake_image_to_another_uv", text='Convert all images to another UV', icon='RENDER_STILL').mode = 'ALL_MATERIAL_IMAGES'
-        layout.operator("paint.yp_add_mask_from_other_material", text='Add mask from other material', icon='SNAP_FACE')
+        layout.operator("paint.yp_bake_image_to_another_uv", text='Convert all images to another UV', 
+                icon='RENDER_STILL').mode = 'ALL_MATERIAL_IMAGES'
+        layout.operator("paint.yp_add_mask_from_other_material", text='Add mask from other material', 
+                icon='SNAP_FACE')
         if mat.use_nodes:
             node_mat = mat.active_node_material
-            layout.operator("paint.yp_duplicate_other_material_paint_slots", text="Duplicate Main Material Paint Slots", icon='COPY_ID').other_mat_name = mat.name
+            layout.operator("paint.yp_duplicate_other_material_paint_slots", 
+                    text="Duplicate Main Material Paint Slots", icon='COPY_ID').other_mat_name = mat.name
+
         layout.operator("paint.yp_match_texture_name_to_image_name", icon='SYNTAX_ON')
 
 def register():
-    #bpy.types.VIEW3D_PT_view3d_shading.prepend(draw_viewport_shade_switcher)
-    #bpy.types.VIEW3D_PT_slots_projectpaint.append(draw_texture_paint_slot_extras)
-    #bpy.types.Texture.extras = PointerProperty(type=TextureExtras)
     # Handlers
-    #bpy.app.handlers.scene_update_pre.append(match_paint_texture_slot)
-    bpy.types.Image.ps_props = PointerProperty(type=ImagePaintSlotsProps)
-    bpy.types.Material.ps_props = PointerProperty(type=MaterialPaintSlotProps)
+    bpy.types.Image.ps_props = PointerProperty(type=YPImagePaintSlotsProps)
+    bpy.types.Material.ps_props = PointerProperty(type=YPMaterialPaintSlotProps)
 
     bpy.app.handlers.scene_update_pre.append(update_node_mat_image_texpaint)
     bpy.app.handlers.scene_update_pre.append(recover_loss_of_active_paint_slot_index_hack)
 
 def unregister():
-    #bpy.types.VIEW3D_PT_view3d_shading.remove(draw_viewport_shade_switcher)
-    #bpy.types.VIEW3D_PT_slots_projectpaint.remove(draw_texture_paint_slot_extras)
     # Handlers
-    #bpy.app.handlers.scene_update_pre.remove(match_paint_texture_slot)
     bpy.app.handlers.scene_update_pre.remove(update_node_mat_image_texpaint)
     bpy.app.handlers.scene_update_pre.remove(recover_loss_of_active_paint_slot_index_hack)

@@ -67,7 +67,7 @@ def downsample_image(ss_img, target_img):
     bpy.data.textures.remove(ss_tex, do_unlink=True)
     bpy.data.materials.remove(ss_mat, do_unlink=True)
 
-class BakeStuffs(bpy.types.Operator):
+class YPBakeStuffs(bpy.types.Operator):
     bl_idname = "view3d.yp_bake_stuffs"
     bl_label = "Bake Stuffs"
     bl_description = "Bake stuffs like you never bake before"
@@ -1110,7 +1110,7 @@ class BakeStuffs(bpy.types.Operator):
 
         return {'FINISHED'}
 
-class BakeToolsSetting(bpy.types.PropertyGroup):
+class YPBakeToolsSetting(bpy.types.PropertyGroup):
     antialias = BoolProperty(
         name = "Antialias",
         description = "Use supersample antialiasing to bake result. WARNING! REALLY SLOW!!",
@@ -1251,14 +1251,14 @@ class BakeToolsSetting(bpy.types.PropertyGroup):
 
     light_color = FloatVectorProperty(name='Light Color', size=3, subtype='COLOR', default=(1.0,1.0,1.0), min=0.0, max=1.0)
 
-class ObjectBakeToolsProps(bpy.types.PropertyGroup):
+class YPObjectBakeToolsProps(bpy.types.PropertyGroup):
     #original_layers = StringProperty(default='')
     original_modifiers_show_render = StringProperty(default='')
     original_modifiers_show_viewport = StringProperty(default='')
     original_multires_preview = IntProperty(default=0)
     original_multires_render = IntProperty(default=0)
 
-class MaterialBakeToolsProps(bpy.types.PropertyGroup):
+class YPMaterialBakeToolsProps(bpy.types.PropertyGroup):
     original_active_slots = StringProperty(default='')
     original_diffuse_intensity = FloatProperty(default=0.0, min=0.0, max=1.0)
     original_use_diffuse_ramp = BoolProperty(default=False)
@@ -1271,9 +1271,9 @@ class MaterialBakeToolsProps(bpy.types.PropertyGroup):
     original_specular_color_factor = StringProperty(default='')
 
 def register():
-    bpy.types.Object.bt_props = PointerProperty(type=ObjectBakeToolsProps)
-    bpy.types.Material.bt_props = PointerProperty(type=MaterialBakeToolsProps)
-    bpy.types.Scene.bt_props = PointerProperty(type=BakeToolsSetting)
+    bpy.types.Object.bt_props = PointerProperty(type=YPObjectBakeToolsProps)
+    bpy.types.Material.bt_props = PointerProperty(type=YPMaterialBakeToolsProps)
+    bpy.types.Scene.bt_props = PointerProperty(type=YPBakeToolsSetting)
 
 def unregister():
     pass
