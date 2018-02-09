@@ -4,7 +4,7 @@ from bpy.app.handlers import persistent
 from .common import *
 from . import paint_slots
 
-class SaveAsImage(bpy.types.Operator):
+class YPSaveAsImage(bpy.types.Operator):
     bl_idname = "image.yp_save_as_texture_paint"
     bl_label = "Save As texture paint image"
     bl_description = "Save As texture paint Image"
@@ -47,7 +47,7 @@ class SaveAsImage(bpy.types.Operator):
 
         return{'FINISHED'}
 
-class SaveImage(bpy.types.Operator):
+class YPSaveImage(bpy.types.Operator):
     bl_idname = "image.yp_save_texture_paint"
     bl_label = "Save texture paint image"
     bl_description = "Save texture paint image"
@@ -71,7 +71,7 @@ class SaveImage(bpy.types.Operator):
 
         return{'FINISHED'}
 
-class SaveAllImage(bpy.types.Operator):
+class YPSaveAllImage(bpy.types.Operator):
     bl_idname = "image.yp_save_dirty"
     bl_label = "Save All Images"
     bl_description = "Save all texture paint images (will pack instead if image is packed)"
@@ -84,7 +84,7 @@ class SaveAllImage(bpy.types.Operator):
         bpy.ops.image.save_dirty()
         return {'FINISHED'}
 
-class ReloadImage(bpy.types.Operator):
+class YPReloadImage(bpy.types.Operator):
     bl_idname = "image.yp_reload_texture_paint"
     bl_label = "Reload texture paint image"
     bl_description = "Reload texture paint image"
@@ -109,7 +109,7 @@ class ReloadImage(bpy.types.Operator):
 
         return {'FINISHED'}
 
-class PackImage(bpy.types.Operator):
+class YPPackImage(bpy.types.Operator):
     bl_idname = "image.yp_pack_image"
     bl_label = "Pack image into blend file"
     bl_description = "Pack image to blend file"

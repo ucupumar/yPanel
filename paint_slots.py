@@ -2120,7 +2120,7 @@ def update_node_mat_image_texpaint(scene):
     if obj.mode != 'TEXTURE_PAINT': return
 
     # This code only works when paint slots subpanel is uncollapsed
-    ypui = bpy.context.window_manager
+    ypui = bpy.context.window_manager.yp_ui
     if not ypui.show_paint_slots: return
     #screen = bpy.context.screen
     #yp_ids = [int(i[2:]) for i in screen.yp_props.uncollapsed_paint_slots.split()]
