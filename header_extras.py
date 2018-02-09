@@ -714,7 +714,7 @@ def modified_global_header(self, context):
 
     if view3d_found or (screen.show_fullscreen and area.type == 'VIEW_3D'):
 
-        if obj and obj.mode == 'OBJECT':
+        if not obj or (obj and obj.mode == 'OBJECT'):
 
             row.prop(scene.render, 'use_simplify', text='Simplify', icon='MOD_DECIM')
             if scene.render.use_simplify:
