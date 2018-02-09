@@ -3,11 +3,47 @@ from . import header_extras
 from bpy.types import Operator, AddonPreferences
 from bpy.props import StringProperty, IntProperty, BoolProperty
 
+particle_brush_items = [
+    ("NONE"  , "None"  , "Don’t use any brush"         , 0),
+    ("COMB"  , "Comb"  , "Comb hairs"                  , 1),
+    ("SMOOTH", "Smooth", "Smooth hairs"                , 2),
+    ("ADD"   , "Add"   , "Add hairs"                   , 3),
+    ("LENGTH", "Length", "Make hairs longer or shorter", 4),
+    ("PUFF"  , "Puff"  , "Make hairs stand up"         , 5),
+    ("CUT"   , "Cut"   , "Cut hairs"                   , 6),
+    ("WEIGHT", "Weight", "Weight hair particles"       , 7)
+    ]
+
+particle_brush_keys = ("ONE","TWO","THREE","FOUR","FIVE","SIX","SEVEN","EIGHT")
+
+class PARTICLE_OT_yp_select_brush(bpy.types.Operator):
+    """Select a particle brush"""
+    bl_idname = "particle.yp_select_brush"
+    bl_label  = "Particle Select Brush"
+
+    brush = bpy.props.EnumProperty(
+                name = "Brush",
+                default = "NONE",
+                items = particle_brush_items
+                )
+
+    @classmethod
+    def poll(self, context):
+        return context.object and context.object.mode == 'PARTICLE_EDIT'
+
+    def execute(self, context):
+        context.scene.tool_settings.particle_edit.tool = self.brush
+        for region in context.area.regions:
+            if region.type == "TOOLS":
+                region.tag_redraw()
+        return {'FINISHED'}
+
 def set_keybind():
     wm = bpy.context.window_manager
      
     f3_keybind_found = False
     f4_keybind_found = False
+    f7_keybind_found = False
     
     # Object non modal keybinds
     # Get object non modal keymaps
@@ -34,6 +70,14 @@ def set_keybind():
                 # Deactivate other F4 keybind
                 kmi.active = False
 
+        if kmi.type == 'F7':
+            if kmi.idname == 'object.mode_set' and kmi.properties.mode == 'PARTICLE_EDIT':
+                f7_keybind_found = True
+                kmi.active = True
+            else:
+                # Deactivate other F4 keybind
+                kmi.active = False
+
     # Set F3 Keybind
     if not f3_keybind_found:
         new_shortcut = km.keymap_items.new('object.mode_set', 'F3', 'PRESS')
@@ -46,8 +90,14 @@ def set_keybind():
         new_shortcut.properties.mode = 'TEXTURE_PAINT'
         new_shortcut.properties.toggle = True
 
+    # Set F7 Keybind
+    if not f4_keybind_found:
+        new_shortcut = km.keymap_items.new('object.mode_set', 'F7', 'PRESS')
+        new_shortcut.properties.mode = 'PARTICLE_EDIT'
+        new_shortcut.properties.toggle = True
+
     f4_keybind_found = False
-    f7_keybind_found = False
+    f9_keybind_found = False
     z_keybind_found = False
     d_keybind_found = False
 
@@ -67,12 +117,12 @@ def set_keybind():
                 # Deactivate other F4 keybind
                 kmi.active = False
 
-        if kmi.type == 'F7':
+        if kmi.type == 'F9':
             if kmi.idname == 'scene.yp_use_simplify_toggle':
-                f7_keybind_found = True
+                f9_keybind_found = True
                 kmi.active = True
             else:
-                # Deactivate other F7 keybind
+                # Deactivate other F9 keybind
                 kmi.active = False
 
         # Search for Shift Alt Z keybind
@@ -90,16 +140,16 @@ def set_keybind():
                 d_keybind_found = True
                 kmi.active = True
             else:
-                # Deactivate other F7 keybind
+                # Deactivate other D keybind
                 kmi.active = False
 
     # Set F4 Keybind
     if not f4_keybind_found:
         new_shortcut = km.keymap_items.new('paint.yp_image_paint_toggle', 'F4', 'PRESS')
 
-    # Set F7 Keybind
-    if not f7_keybind_found:
-        new_shortcut = km.keymap_items.new('scene.yp_use_simplify_toggle', 'F7', 'PRESS')
+    # Set F9 Keybind
+    if not f9_keybind_found:
+        new_shortcut = km.keymap_items.new('scene.yp_use_simplify_toggle', 'F9', 'PRESS')
 
     # Set Shift Alt Z keybind
     if not z_keybind_found:
@@ -109,22 +159,61 @@ def set_keybind():
     if not d_keybind_found:
         new_shortcut = km.keymap_items.new('view3d.yp_only_render_toggle', 'D', 'PRESS')
 
+    # Particle edit keybinds
+    km = wm.keyconfigs.addon.keymaps.get('Particle')
+    if not km:
+        km = wm.keyconfigs.addon.keymaps.new('Particle')
+
+    for i, key in enumerate(particle_brush_keys):
+        kmi_found = False
+        kmis = [k for k in km.keymap_items if k.type == key]
+        if kmis: 
+            for kmi in kmis:
+                if kmi.idname == 'particle.yp_select_brush': 
+                    kmi.active = True
+                    kmi_found = True
+                else:
+                    kmi.active = False
+
+        if not kmi_found:
+            kmi = km.keymap_items.new(
+                idname = "particle.yp_select_brush",
+                type = key,
+                value = "PRESS",
+                )           
+            kmi.properties.brush = particle_brush_items[i][0]
+
 def remove_keybind():
     wm = bpy.context.window_manager
+
     km = wm.keyconfigs.addon.keymaps.get('Object Non-modal')
     if km:
         for kmi in km.keymap_items:
-            if ((kmi.type == 'F3' and kmi.idname == 'object.mode_set' and kmi.properties.mode == 'SCULPT') or
-                (kmi.type == 'F4' and kmi.idname == 'object.mode_set' and kmi.properties.mode == 'TEXTURE_PAINT')):
-                km.keymap_items.remove(kmi)
+            if kmi.type in {'F3', 'F4', 'F7'}:
+                if ((kmi.type == 'F3' and kmi.idname == 'object.mode_set' and kmi.properties.mode == 'SCULPT') or
+                    (kmi.type == 'F4' and kmi.idname == 'object.mode_set' and kmi.properties.mode == 'TEXTURE_PAINT') or
+                    (kmi.type == 'F7' and kmi.idname == 'object.mode_set' and kmi.properties.mode == 'PARTICLE_EDIT')):
+                    km.keymap_items.remove(kmi)
+                else: kmi.active = True
+
     km = wm.keyconfigs.addon.keymaps.get('Window')
     if km:
         for kmi in km.keymap_items:
-            if ((kmi.type == 'F4' and kmi.idname == 'paint.yp_image_paint_toggle') or
-                (kmi.type == 'F7' and kmi.idname == 'scene.yp_use_simplify_toggle') or
-                (kmi.type == 'Z' and kmi.shift and kmi.alt and kmi.idname == 'view3d.yp_material_shade_toggle') or
-                (kmi.type == 'D' and kmi.idname == 'view3d.yp_only_render_toggle')):
-                km.keymap_items.remove(kmi)
+            if kmi.type in {'F4', 'F9', 'Z', 'D'}:
+                if ((kmi.type == 'F4' and kmi.idname == 'paint.yp_image_paint_toggle') or
+                    (kmi.type == 'F9' and kmi.idname == 'scene.yp_use_simplify_toggle') or
+                    (kmi.type == 'Z' and kmi.shift and kmi.alt and kmi.idname == 'view3d.yp_material_shade_toggle') or
+                    (kmi.type == 'D' and kmi.idname == 'view3d.yp_only_render_toggle')):
+                    km.keymap_items.remove(kmi)
+                else: kmi.active = True
+
+    km = wm.keyconfigs.addon.keymaps.get('Particle')
+    if km:
+        for kmi in km.keymap_items:
+            if kmi.type in particle_brush_keys:
+                if kmi.idname =='particle.yp_select_brush':
+                    km.keymap_items.remove(kmi)
+                else: kmi.active = True
 
 def update_use_keybind(self, context):
     if not self.use_keybind:
@@ -194,14 +283,18 @@ class yPanelPreferences(AddonPreferences):
         col.label(text='F3')
         col.label(text='F4')
         col.label(text='F7')
+        col.label(text='F9')
         col.label(text='Shift + Alt + Z')
         col.label(text='D')
+        col.label(text='1-8')
         col=row.column(align=True)
         col.label(text=': Sculpt Mode toggle')
         col.label(text=': Texture Paint Mode toggle (also works on Image Editor)')
+        col.label(text=': Particle Edit Mode toggle')
         col.label(text=': Use Simplify toggle')
         col.label(text=': Material Shade toggle')
         col.label(text=': Only Render (viewport) toggle')
+        col.label(text=': Change particle edit brush (Particle Edit Mode)')
 
 def register():
     prefs = bpy.context.user_preferences.addons.get('yPanel')

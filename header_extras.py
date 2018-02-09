@@ -1,4 +1,4 @@
-import bpy
+import bpy, os
 from bpy.props import *
 from . import material_override
 from .common import *
@@ -16,6 +16,17 @@ mode_dict = {
         'PARTICLE_EDIT' : 'Particle Edit',
         }
 
+mode_icon_dict = {
+        'OBJECT' : 'OBJECT_DATAMODE',
+        'EDIT' : 'EDITMODE_HLT',
+        'POSE' : 'POSE_HLT',
+        'SCULPT' : 'SCULPTMODE_HLT',
+        'VERTEX_PAINT' : 'VPAINT_HLT',
+        'WEIGHT_PAINT' : 'WPAINT_HLT',
+        'TEXTURE_PAINT' : 'TPAINT_HLT',
+        'PARTICLE_EDIT' : 'PARTICLEMODE',
+        }
+
 shade_dict = {
         'BOUNDBOX' : 'Bounding Box',
         'WIREFRAME' : 'Wireframe',
@@ -30,6 +41,17 @@ def matcap_items(self, context):
     for i in range(1,25):
         items.append((str(i).zfill(2), 'Matcap ' + str(i), '', 'MATCAP_' + str(i).zfill(2), i))
     return items
+
+def is_inner_brighter_than_inner_sel():
+    ui = bpy.context.user_preferences.themes[0].user_interface
+    inner = ui.wcol_regular.inner
+    inner_sel = ui.wcol_regular.inner_sel
+
+    # Get luminance
+    inner_lum = inner[0]  * 0.33 + inner[1] * 0.5 + inner[2] * 0.17
+    inner_sel_lum = inner_sel[0]  * 0.33 + inner_sel[1] * 0.5 + inner_sel[2] * 0.17
+
+    return inner_lum > inner_sel_lum
 
 class YPSetMatcap(bpy.types.Operator):
     bl_idname = "view3d.yp_set_matcap"
@@ -127,6 +149,283 @@ class YPAOSettings(bpy.types.Operator):
             col.prop(ssao_settings, "attenuation")
             col.prop(ssao_settings, "samples")
             col.prop(ssao_settings, "color")
+
+    def execute(self, context):
+        return context.window_manager.invoke_popup(self, width=180) 
+
+class YPSculptSettings(bpy.types.Operator):
+    bl_idname = "view3d.yp_sculpt_settings"
+    bl_label = "Sculpt Settings"
+    bl_description = "Sculpt Settings"
+
+    @classmethod
+    def poll(cls, context):
+        return context.object and context.object.mode == 'SCULPT'
+
+    def draw(self, context):
+        sculpt = context.scene.tool_settings.sculpt
+        col = self.layout.column(align=True)
+
+        col.prop(sculpt, "radial_symmetry", text='Radial')
+        col.prop(sculpt, "use_symmetry_feather", text="Feather")
+
+        row = col.row(align=True)
+        row.label(text="Tiling:")
+        row.prop(sculpt, "tile_x", text="X", toggle=True)
+        row.prop(sculpt, "tile_y", text="Y", toggle=True)
+        row.prop(sculpt, "tile_z", text="Z", toggle=True)
+        col.prop(sculpt, "tile_offset", text="Tile Offset")
+
+    def execute(self, context):
+        return context.window_manager.invoke_popup(self, width=180) 
+
+class YPSculptShadeSmoothOrFlat(bpy.types.Operator):
+    bl_idname = "object.yp_shade_smooth_flat"
+    bl_label = "Shade Smooth or Flat"
+    bl_description = "Shade Smooth or Flat"
+
+    shade = EnumProperty(
+            name = 'Shade',
+            description = 'Shade',
+            items = (('SMOOTH', 'Smooth', ''),
+                    ('FLAT', 'Flat', '')),
+            default = 'SMOOTH')
+
+    @classmethod
+    def poll(cls, context):
+        return context.object and context.object.type == 'MESH'
+
+    def execute(self, context):
+        scene = context.scene
+
+        ori_selects = [o for o in scene.objects if o.select]
+        for o in scene.objects:
+            if o != context.object: 
+                o.select = False
+
+        context.object.select = True
+        if self.shade == 'SMOOTH':
+            bpy.ops.object.shade_smooth()
+        else: bpy.ops.object.shade_flat()
+
+        for o in scene.objects:
+            if o in ori_selects:
+                o.select = True
+            else: o.select = False
+
+        return {'FINISHED'}
+
+class YPMultiresAdd(bpy.types.Operator):
+    bl_idname = "object.yp_multires_add"
+    bl_label = "Add Multires Modifier"
+    bl_description = "Add Multires Modifier"
+
+    @classmethod
+    def poll(cls, context):
+        return context.object and context.object.mode == 'SCULPT'
+
+    def execute(self, context):
+        obj = context.object
+
+        # Search for subsurf modifier first
+        subsurf = None
+        subsurf_idx = -1
+        level = 0
+        render_level = 0
+        for i, m in enumerate(obj.modifiers):
+            if m.type == 'SUBSURF':
+                subsurf = m
+                level = m.levels
+                render_level = m.render_levels
+                subsurf_idx = i
+                break
+        
+        if subsurf:
+            obj.modifiers.remove(subsurf)
+
+            obj.yp_he.ori_subsurf_index = subsurf_idx
+            obj.yp_he.ori_subsurf_levels = level
+            obj.yp_he.ori_subsurf_render_levels = render_level
+
+        mod = obj.modifiers.new('Multires', 'MULTIRES')
+
+        # Get current modifier index which not necessarily on last index
+        idx = len(obj.modifiers)-1
+        for i, m in enumerate(obj.modifiers):
+            if m == mod:
+                idx = i
+                break
+
+        if subsurf:
+            if idx > subsurf_idx:
+                idx_diff = idx - subsurf_idx
+                for i in range(idx_diff):
+                    bpy.ops.object.modifier_move_up(modifier=mod.name)
+
+            if level > 0:
+                for i in range(level):
+                    bpy.ops.object.multires_subdivide(modifier=mod.name)
+                mod.levels = level
+
+        return{'FINISHED'}
+
+class YPMultiresRemove(bpy.types.Operator):
+    bl_idname = "object.yp_multires_remove"
+    bl_label = "Remove Multires Modifier"
+    bl_description = "Remove Multires Modifier"
+    #bl_options = {'REGISTER', 'UNDO'}
+
+    recover_subsurf = BoolProperty(
+            name='Recover Previous Subsurf',
+            description='Try to recover previous subsurf modifier',
+            default=True)
+
+    @classmethod
+    def poll(cls, context):
+        return context.object and context.object.mode == 'SCULPT'
+
+    def invoke(self, context, event):
+        obj = context.object
+        if obj.yp_he.ori_subsurf_index > -1:
+            return context.window_manager.invoke_props_dialog(self, width=220)
+        return self.execute(context)
+
+    def draw(self, context):
+        self.layout.prop(self, 'recover_subsurf')
+
+    def execute(self, context):
+        obj = context.object
+        mod = [m for m in obj.modifiers if m.type == 'MULTIRES']
+        if not mod: return {'CANCELLED'}
+        mod = mod[0]
+
+        obj.modifiers.remove(mod)
+
+        if self.recover_subsurf and obj.yp_he.ori_subsurf_index > -1:
+            mod = obj.modifiers.new('Subsurf', 'SUBSURF')
+            mod.levels = obj.yp_he.ori_subsurf_levels
+            mod.render_levels = obj.yp_he.ori_subsurf_render_levels
+
+            # Bring back to original index
+            last_idx = len(obj.modifiers)-1
+            if obj.yp_he.ori_subsurf_index < last_idx:
+                idx_diff = last_idx - obj.yp_he.ori_subsurf_index
+                for i in range(idx_diff):
+                    bpy.ops.object.modifier_move_up(modifier=mod.name)
+
+            obj.yp_he.ori_subsurf_index = -1
+            obj.yp_he.ori_subsurf_levels = -1
+            obj.yp_he.ori_subsurf_render_levels = -1
+
+        return {'FINISHED'}
+
+class YPMultiresSubdivide(bpy.types.Operator):
+    bl_idname = "object.yp_multires_subdivide"
+    bl_label = "Multires Subdivide"
+    bl_description = "Multires Subdivide"
+
+    @classmethod
+    def poll(cls, context):
+        return hasattr(context, 'multires')
+
+    def execute(self, context):
+        mod = context.multires
+
+        bpy.ops.object.multires_subdivide(modifier=mod.name)
+        mod.levels = mod.sculpt_levels
+
+        return {'FINISHED'}
+
+class YPMultiresChangeSculptLevel(bpy.types.Operator):
+    bl_idname = "object.yp_multires_change_sculpt_level"
+    bl_label = "Change multires Sculpt Level"
+    bl_description = "Change multires Sculpt Level"
+
+    direction = EnumProperty(
+            name='Direction',
+            items = (('UP', 'Up', ''),
+                    ('DOWN', 'Down', '')),
+            default='UP')
+
+    @classmethod
+    def poll(cls, context):
+        return hasattr(context, 'multires')
+
+    def execute(self, context):
+        mod = context.multires
+
+        if self.direction == 'UP':
+            mod.sculpt_levels += 1
+        else: mod.sculpt_levels -= 1
+
+        mod.levels = mod.sculpt_levels
+        mod.render_levels = mod.sculpt_levels
+
+        return{'FINISHED'}
+
+class YPMultiresSettings(bpy.types.Operator):
+    bl_idname = "view3d.yp_multires_settings"
+    bl_label = "Multires Settings"
+    bl_description = "Multires Settings"
+
+    @classmethod
+    def poll(cls, context):
+        return context.object and context.object.mode == 'SCULPT'
+
+    def check(self, context):
+        return True
+
+    def draw(self, context):
+        obj = context.object
+        mod = [m for m in obj.modifiers if m.type == 'MULTIRES']
+        if not mod:
+            self.layout.label('Multires is removed!')
+            return
+        mod = mod[0]
+
+        col = self.layout.column()
+        #col.context_pointer_set('multires', mod)
+
+        col.label('Sculpt Level: ' + str(mod.sculpt_levels) + '/' + str(mod.total_levels))
+        #row.operator("object.multires_subdivide", text="Subdivide").modifier = mod.name
+        col.operator("object.multires_higher_levels_delete", text="Delete Higher").modifier = mod.name
+        #col.operator("object.multires_reshape", text="Reshape").modifier = mod.name
+        col.operator("object.multires_base_apply", text="Apply Base").modifier = mod.name
+        col.prop(mod, "use_subsurf_uv")
+        #col.prop(mod, "show_only_control_edges")
+
+        row = col.row(align=True)
+        row.prop(mod, "subdivision_type", expand=True)
+        col.separator()
+
+        col.operator("object.yp_multires_remove", text="Delete Multires", icon='ERROR')
+
+    def execute(self, context):
+        return context.window_manager.invoke_popup(self, width=180) 
+
+class YPDyntopoSettings(bpy.types.Operator):
+    bl_idname = "view3d.yp_dyntopo_settings"
+    bl_label = "Dyntopo Settings"
+    bl_description = "Dyntopo Settings"
+
+    @classmethod
+    def poll(cls, context):
+        return context.object and context.object.mode == 'SCULPT'
+
+    def check(self, context):
+        return True
+
+    def draw(self, context):
+        sculpt = context.tool_settings.sculpt
+
+        col = self.layout.column()
+
+        if (sculpt.detail_type_method == 'CONSTANT'):
+            col.operator("sculpt.detail_flood_fill")
+
+        #row = col.row(align=True)
+        col.prop(sculpt, "symmetrize_direction") #, text='')
+        col.operator("sculpt.symmetrize")
 
     def execute(self, context):
         return context.window_manager.invoke_popup(self, width=180) 
@@ -248,6 +547,7 @@ def mode_switcher_panel(layout):
 
 def viewport_header_addition(self, context):
     scene = context.scene
+    obj = context.object
     space = context.space_data
     gs = scene.game_settings 
     toolsettings = context.tool_settings
@@ -256,6 +556,8 @@ def viewport_header_addition(self, context):
     ypui = context.window_manager.yp_ui
 
     layout = self.layout
+    #brighter_inner = is_inner_brighter_than_inner_sel()
+    #print(brighter_inner)
 
     #layout.label('', icon='BLANK1')
 
@@ -274,7 +576,11 @@ def viewport_header_addition(self, context):
     row = layout.row(align=True)
     row.prop(space, 'show_only_render', text='', icon='SMOOTH')
     row.prop(space, "show_world", text='', icon='WORLD')
-    row.prop(space, "show_backface_culling", text='', icon='MOD_WIREFRAME')
+    #row.prop(space, "show_backface_culling", text='', icon='MOD_WIREFRAME')
+    row.prop(space, "show_backface_culling", text='', icon='SNAP_FACE')
+
+    if obj and obj.type == 'MESH' and obj.mode == 'EDIT':
+        row.prop(space, 'show_occlude_wire', text='', icon='MOD_WIREFRAME')
 
     if scene.render.engine in {'BLENDER_RENDER', 'BLENDER_GAME'}: 
         if space.viewport_shade == 'TEXTURED' and gs.material_mode == 'MULTITEXTURE':
@@ -284,18 +590,24 @@ def viewport_header_addition(self, context):
         row.prop(space, "show_textured_solid", text='', icon='TEXTURE_SHADED')
 
     row = layout.row(align=True)
+    #icon = 'ao' if brighter_inner and not space.fx_settings.use_ssao else 'ao_light'
+    #row.prop(space.fx_settings, "use_ssao", text="", icon_value=custom_icons[icon].icon_id)
     row.prop(space.fx_settings, "use_ssao", text="", icon_value=custom_icons['ao'].icon_id)
     if space.fx_settings.use_ssao:
         row.operator('view3d.yp_ao_settings', text='', icon='SCRIPTWIN')
 
     if space.viewport_shade == 'SOLID':
         row = layout.row(align=True)
-        row.prop(space, "use_matcap", text='', icon_value=custom_icons["matcap"].icon_id)
+        #icon = 'matcap' if brighter_inner and not space.use_matcap else 'matcap_light'
+        #row.prop(space, "use_matcap", text='', icon_value=custom_icons[icon].icon_id)
+        row.prop(space, "use_matcap", text='', icon_value=custom_icons['matcap'].icon_id)
         if space.use_matcap:
             row.menu('VIEW3D_PT_yp_matcap_menu', icon='MATCAP_' + space.matcap_icon, text='')
 
     if space.region_3d.view_perspective == 'CAMERA':
         row = layout.row(align=True)
+        #icon = 'dof' if brighter_inner and not space.fx_settings.use_dof else 'dof_light'
+        #row.prop(space.fx_settings, "use_dof", text='', icon_value=custom_icons[icon].icon_id)
         row.prop(space.fx_settings, "use_dof", text='', icon_value=custom_icons['dof'].icon_id)
         if space.fx_settings.use_dof:
             row.operator('view3d.yp_dof_settings', text='', icon='SCRIPTWIN')
@@ -336,6 +648,8 @@ def modified_global_header(self, context):
     scene = context.scene
     rd = scene.render
 
+    brighter_inner = is_inner_brighter_than_inner_sel()
+
     row = layout.row(align=True)
     row.template_header()
 
@@ -357,9 +671,33 @@ def modified_global_header(self, context):
 
     layout.template_running_jobs()
 
-    layout.template_reports_banner()
+    ### Custom Header Starts
 
     row = layout.row(align=True)
+
+    screen = context.screen
+    area = context.area
+    ypui = scene.yp_ui
+
+    # Search for viewport area
+    view3d_found = False
+    for a in screen.areas:
+        if a.type == 'VIEW_3D':
+            view3d_found = True
+            break
+
+    if view3d_found or (screen.show_fullscreen and area.type == 'VIEW_3D'):
+
+        mode_switcher_panel(row)
+
+        obj = context.object
+        if obj:
+            row.label(mode_dict[obj.mode] + ' Mode')
+        else:
+            row.label("Object Mode")
+
+    # Original reports banner
+    row.template_reports_banner()
 
     if bpy.app.autoexec_fail is True and bpy.app.autoexec_fail_quiet is False:
         row.label("Auto-run disabled", icon='ERROR')
@@ -371,34 +709,162 @@ def modified_global_header(self, context):
 
         # include last so text doesn't push buttons out of the header
         row.label(bpy.app.autoexec_fail_message)
+        row = layout.row(align=True)
         return
 
-    mode_switcher_panel(row)
+    if view3d_found or (screen.show_fullscreen and area.type == 'VIEW_3D'):
 
-    obj = context.object
-    if obj:
-        row.label(mode_dict[obj.mode] + ' Mode')
-    else:
-        row.label("Object Mode")
+        if obj and obj.mode == 'OBJECT':
 
-    row.prop(scene.render, 'use_simplify', text='', icon='MOD_DECIM')
-    if scene.render.use_simplify:
-        row.prop(scene.render, 'simplify_subdivision', text='Simplify Level')
+            row.prop(scene.render, 'use_simplify', text='Simplify', icon='MOD_DECIM')
+            if scene.render.use_simplify:
+                row.prop(scene.render, 'simplify_subdivision', text='Level')
+            row.separator()
 
-    row.separator()
+        elif obj and obj.mode == 'TEXTURE_PAINT':
+            paint = bpy.context.tool_settings.image_paint
+
+            row.label('Mirror:', icon='MOD_MIRROR')
+            icon = 'x' if brighter_inner and not paint.use_symmetry_x else 'x_light'
+            row.prop(paint, "use_symmetry_x", text="", icon_value=custom_icons[icon].icon_id)
+            icon = 'y' if brighter_inner and not paint.use_symmetry_y else 'y_light'
+            row.prop(paint, "use_symmetry_y", text="", icon_value=custom_icons[icon].icon_id)
+            icon = 'z' if brighter_inner and not paint.use_symmetry_z else 'z_light'
+            row.prop(paint, "use_symmetry_z", text="", icon_value=custom_icons[icon].icon_id)
+            row.separator()
+
+        elif obj and obj.mode == 'SCULPT':
+
+            sculpt = context.tool_settings.sculpt
+
+            row.label('Mirror:', icon='MOD_MIRROR')
+            icon = 'x' if brighter_inner and not sculpt.use_symmetry_x else 'x_light'
+            row.prop(sculpt, "use_symmetry_x", text="", icon_value=custom_icons[icon].icon_id)
+            icon = 'y' if brighter_inner and not sculpt.use_symmetry_y else 'y_light'
+            row.prop(sculpt, "use_symmetry_y", text="", icon_value=custom_icons[icon].icon_id)
+            icon = 'z' if brighter_inner and not sculpt.use_symmetry_z else 'z_light'
+            row.prop(sculpt, "use_symmetry_z", text="", icon_value=custom_icons[icon].icon_id)
+
+            row = layout.row(align=True)
+            row.label('Lock:', icon='LOCKED')
+            icon = 'x' if brighter_inner and not sculpt.lock_x else 'x_light'
+            row.prop(sculpt, "lock_x", text="", icon_value=custom_icons[icon].icon_id)
+            icon = 'y' if brighter_inner and not sculpt.lock_y else 'y_light'
+            row.prop(sculpt, "lock_y", text="", icon_value=custom_icons[icon].icon_id)
+            icon = 'z' if brighter_inner and not sculpt.lock_z else 'z_light'
+            row.prop(sculpt, "lock_z", text="", icon_value=custom_icons[icon].icon_id)
+
+            row = layout.row(align=True)
+            row.operator('view3d.yp_sculpt_settings', text='', icon='SCRIPTWIN')
+            row.separator()
+
+            if context.sculpt_object.use_dynamic_topology_sculpting:
+                row.prop(sculpt, "use_smooth_shading", text='Smooth', toggle=True)
+                row.separator()
+            else:
+                row.operator("object.yp_shade_smooth_flat", text="Smooth").shade = 'SMOOTH'
+                row.operator("object.yp_shade_smooth_flat", text="Flat").shade = 'FLAT'
+                row.separator()
+
+            mod = [m for m in obj.modifiers if m.type == 'MULTIRES']
+            if mod:
+                mod = mod[0]
+                row.label('Multires', icon='MOD_MULTIRES')
+                row.context_pointer_set('multires', mod)
+                row.operator("object.yp_multires_subdivide", text="", icon='ZOOMIN')
+                row.operator("object.yp_multires_change_sculpt_level", text="", icon='TRIA_LEFT').direction = 'DOWN'
+                row.operator("object.yp_multires_change_sculpt_level", text="", icon='TRIA_RIGHT').direction = 'UP'
+                row.operator('view3d.yp_multires_settings', text='', icon='SCRIPTWIN')
+                row.label('Level: ' + str(mod.sculpt_levels) + '/' + str(mod.total_levels))
+
+            elif context.sculpt_object.use_dynamic_topology_sculpting:
+                row.alert = True
+                row.operator("sculpt.dynamic_topology_toggle", text='Dyntopo', icon='MOD_TRIANGULATE')
+                row.alert = False
+
+                #row.separator()
+                #row = self.layout.row(align=True)
+
+                #icon = 'TRIA_RIGHT' if ypui.expand_dyntopo_type_method else 'TRIA_DOWN'
+                #row.prop(ypui, 'expand_dyntopo_type_method', text='', emboss=False, icon=icon)
+
+                #row = self.layout.row(align=True)
+
+                #if ypui.expand_dyntopo_type_method:
+                #    row.prop(sculpt, "detail_type_method", expand=True)
+                #else: row.prop(sculpt, "detail_type_method", text='', expand=False)
+
+                row.prop(sculpt, "detail_type_method", text='', expand=False)
+
+                if (sculpt.detail_type_method == 'CONSTANT'):
+                    row.prop(sculpt, "constant_detail_resolution", text='')
+                    row.operator("sculpt.sample_detail_size", text="", icon='EYEDROPPER')
+                elif (sculpt.detail_type_method == 'BRUSH'):
+                    row.prop(sculpt, "detail_percent", text='')
+                else:
+                    row.prop(sculpt, "detail_size", text='')
+
+                row.operator('view3d.yp_dyntopo_settings', text='', icon='SCRIPTWIN')
+                row = self.layout.row(align=True)
+
+                icon = 'TRIA_RIGHT' if ypui.expand_dyntopo_refine_method else 'TRIA_DOWN'
+                row.prop(ypui, 'expand_dyntopo_refine_method', text='', emboss=False, icon=icon)
+                row = self.layout.row(align=True)
+
+                if ypui.expand_dyntopo_refine_method:
+                    row.prop(sculpt, "detail_refine_method", expand=True)
+                else: row.prop(sculpt, "detail_refine_method", text='', expand=False)
+
+                row = self.layout.row(align=True)
+
+            else:
+                row.operator('object.yp_multires_add', text='Multires', icon='MOD_MULTIRES')
+                row = self.layout.row(align=True)
+
+                row.operator("sculpt.dynamic_topology_toggle", text='Dyntopo', icon='MOD_TRIANGULATE')
+                row = self.layout.row(align=True)
+
+        elif obj and obj.type == 'ARMATURE' and obj.mode == 'POSE':
+            row.prop(obj.data, 'use_auto_ik', toggle=True)
+            row.separator()
+
+        elif obj and obj.type in {'MESH', 'ARMATURE'} and obj.mode in {'EDIT', 'WEIGHT_PAINT'}:
+            row.prop(obj.data, 'use_mirror_x', text='X Mirror', icon='MOD_MIRROR')
+            if obj.type == 'MESH' and obj.data.use_mirror_x:
+                row.prop(obj.data, 'use_mirror_topology', text='Topology', toggle=True)
+            row.separator()
+
+        elif obj and obj.mode == 'PARTICLE_EDIT':
+            pass
+
+    ### Custom Header Ends
 
     row.operator("wm.splash", text="", icon='BLENDER', emboss=False)
     row.label(text=scene.statistics(), translate=False)
 
 original_global_header = bpy.types.INFO_HT_header.draw
 
+class YPHeaderExtrasProps(bpy.types.PropertyGroup):
+    ori_subsurf_index = IntProperty(default=-1)
+    ori_subsurf_levels = IntProperty(default=-1)
+    ori_subsurf_render_levels = IntProperty(default=-1)
+
 def register():
     # Custom Icon
     global custom_icons
     custom_icons = bpy.utils.previews.new()
-    custom_icons.load('matcap', get_addon_filepath() + 'matcap_icon.png', 'IMAGE')
-    custom_icons.load('ao', get_addon_filepath() + 'ao_icon.png', 'IMAGE')
-    custom_icons.load('dof', get_addon_filepath() + 'dof_icon.png', 'IMAGE')
+    filepath = get_addon_filepath() + 'icons' + os.sep
+    custom_icons.load('matcap', filepath + 'matcap_icon.png', 'IMAGE')
+    custom_icons.load('ao', filepath + 'ao_icon.png', 'IMAGE')
+    custom_icons.load('dof', filepath + 'dof_icon.png', 'IMAGE')
+    custom_icons.load('x', filepath + 'x_icon.png', 'IMAGE')
+    custom_icons.load('y', filepath + 'y_icon.png', 'IMAGE')
+    custom_icons.load('z', filepath + 'z_icon.png', 'IMAGE')
+    custom_icons.load('x_light', filepath + 'x_light_icon.png', 'IMAGE')
+    custom_icons.load('y_light', filepath + 'y_light_icon.png', 'IMAGE')
+    custom_icons.load('z_light', filepath + 'z_light_icon.png', 'IMAGE')
+
+    bpy.types.Object.yp_he = PointerProperty(type=YPHeaderExtrasProps)
 
 def unregister():
     # Custom Icon

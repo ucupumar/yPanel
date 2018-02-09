@@ -50,10 +50,26 @@ class VIEW3D_PT_ypanel(bpy.types.Panel):
         obj = bpy.context.object
     
         row = self.layout.row(align=True)
+
+        icon = 'TRIA_DOWN' if self.ypui.show_mode_panel else 'TRIA_RIGHT'
+        row.prop(self.ypui, 'show_mode_panel', emboss=False, text='', icon=icon)
     
         if not obj:
-            row.label('Mode: ' + header_extras.mode_dict['OBJECT'])
-        else: row.label('Mode: ' + header_extras.mode_dict[obj.mode])
+            mode = 'OBJECT'
+        else: mode = obj.mode
+
+        mode_name = header_extras.mode_dict[mode]
+
+        if not self.ypui.show_mode_panel:
+            split = row.split(percentage=0.4)
+            split.label('Mode:')
+            split.operator_menu_enum('object.mode_set', 'mode', text=mode_name, 
+                    icon=header_extras.mode_icon_dict[mode])
+            return
+
+        row.label('Mode: ' + header_extras.mode_dict[mode])
+
+        if not self.ypui.show_mode_panel: return
     
         row = self.layout.row(align=True)
     
@@ -68,13 +84,24 @@ class VIEW3D_PT_ypanel(bpy.types.Panel):
         obj = bpy.context.object
 
         row = self.layout.row(align=True)
+        icon = 'TRIA_DOWN' if self.ypui.show_shade_panel else 'TRIA_RIGHT'
+        row.prop(self.ypui, 'show_shade_panel', emboss=False, text='', icon=icon)
+        #row.label(header_extras.shade_dict[space.viewport_shade] + ' Shading')
+
+        #if not self.ypui.show_shade_panel: return
+        if not self.ypui.show_shade_panel:
+            #row.separator()
+            split = row.split(percentage=0.4)
+            split.label('Shading:')
+            split.prop(space, 'viewport_shade', text='')
+            return
+            
         row.label('Shading: ' + header_extras.shade_dict[space.viewport_shade])
 
         row = self.layout.row(align=True)
-        icon = 'TRIA_DOWN' if self.ypui.show_shading_settings else 'TRIA_RIGHT'
-        row.prop(self.ypui, 'show_shading_settings', emboss=False, text='', icon=icon)
-        row.separator()
         row.prop(space, 'viewport_shade', text='', expand=True)
+        row.separator()
+        row.prop(self.ypui, 'show_shading_settings', emboss=True, text='', icon='SCRIPTWIN')
         if self.ypui.show_shading_settings:
 
             if space.viewport_shade == 'RENDERED':
@@ -1059,7 +1086,7 @@ class VIEW3D_PT_ypanel(bpy.types.Panel):
         sub.active = (brush and brush.sculpt_tool != 'MASK')
         if (sculpt.detail_type_method == 'CONSTANT'):
             row = sub.row(align=True)
-            row.prop(sculpt, "constant_detail")
+            row.prop(sculpt, "constant_detail_resolution")
             row.operator("sculpt.sample_detail_size", text="", icon='EYEDROPPER')
         elif (sculpt.detail_type_method == 'BRUSH'):
             sub.prop(sculpt, "detail_percent")
@@ -1120,8 +1147,8 @@ class VIEW3D_PT_ypanel(bpy.types.Panel):
         col.separator()
 
         row = col.row(align=True)
-        row.operator("object.shade_smooth", text="Smooth")
-        row.operator("object.shade_flat", text="Flat")
+        row.operator("object.yp_shade_smooth_flat", text="Smooth").shade = 'SMOOTH'
+        row.operator("object.yp_shade_smooth_flat", text="Flat").shade = 'FLAT'
 
         col.separator()
         col.enabled = obj.mode != 'EDIT'
@@ -1200,35 +1227,38 @@ class VIEW3D_PT_ypanel(bpy.types.Panel):
 
         if obj and obj.type in {'MESH', 'CURVE'}:
             
-            #if context.mode not in {'SCULPT', 'PAINT_WEIGHT'}:
-            if context.mode not in {'PAINT_WEIGHT'}:
+            if context.mode not in {'SCULPT', 'PAINT_WEIGHT'}:
+            #if context.mode not in {'PAINT_WEIGHT'}:
+                
+                if engine != 'CYCLES':
 
-                mat = obj.active_material
+                    mat = obj.active_material
 
-                # Check if material is using nodes
-                use_nodes = False
-                parent_mat = None
-                if mat and mat.use_nodes:
-                    parent_mat = mat
-                    mat = mat.active_node_material
-                    use_nodes = True
+                    # Check if material is using nodes
+                    use_nodes = False
+                    parent_mat = None
+                    if mat and mat.use_nodes:
+                        parent_mat = mat
+                        mat = mat.active_node_material
+                        use_nodes = True
 
-                self.material_panel(mat, parent_mat) # Material Panel
+                    self.material_panel(mat, parent_mat) # Material Panel
 
-                if obj.type == 'MESH' and engine != 'CYCLES' and mat and mo_mode != 'LIGHTING_ONLY':
-                #if mat and not use_nodes and mo_mode != 'LIGHTING_ONLY':
+                    if obj.type == 'MESH' and mat and mo_mode != 'LIGHTING_ONLY':
+                    #if obj.type == 'MESH' and engine != 'CYCLES' and mat and mo_mode != 'LIGHTING_ONLY':
+                    #if mat and not use_nodes and mo_mode != 'LIGHTING_ONLY':
 
-                    # Check if uv is found
-                    uv_found = False
-                    if len(obj.data.uv_textures) > 0:
-                        uv_found = True
-                    
-                    self.paint_slots_panel(mat, uv_found, parent_mat) # Paint slot panel
+                        # Check if uv is found
+                        uv_found = False
+                        if len(obj.data.uv_textures) > 0:
+                            uv_found = True
+                        
+                        self.paint_slots_panel(mat, uv_found, parent_mat) # Paint slot panel
 
-                    #if not use_nodes and uv_found:
-                    #if uv_found and context.mode not in {'SCULPT'}:
-                    if uv_found:
-                        self.bake_tools_panel(mat) # Bake tools panel
+                        #if not use_nodes and uv_found:
+                        #if uv_found and context.mode not in {'SCULPT'}:
+                        if uv_found:
+                            self.bake_tools_panel(mat) # Bake tools panel
 
             mod = [m for m in obj.modifiers if m.type == 'MULTIRES']
             if mod or context.mode == 'SCULPT':
@@ -1351,7 +1381,8 @@ class ToggleUseSimplify(bpy.types.Operator):
 
     @classmethod
     def poll(cls, context):
-        return context.area.type == 'VIEW_3D'
+        #return not context.object or context.object.mode == 'OBJECT'
+        return True
 
     def execute(self, context):
         scene = context.scene
@@ -1377,6 +1408,10 @@ def load_ui_settings(scene):
 
 # PROPS
 class YPanelUISettings(bpy.types.PropertyGroup):
+
+    show_mode_panel = BoolProperty(default=False)
+    show_shade_panel = BoolProperty(default=False)
+
     show_shading_settings = BoolProperty(default=False)
     show_diffuse_settings = BoolProperty(default=False)
     show_specular_settings = BoolProperty(default=False)
@@ -1409,13 +1444,16 @@ class YPanelUISettings(bpy.types.PropertyGroup):
 
     show_header_extra = BoolProperty(default=True)
 
+    expand_dyntopo_refine_method = BoolProperty(default=False)
+    #expand_dyntopo_type_method = BoolProperty(default=False)
+
 # REGISTERS
 def register():
     # Custom Icon
     global custom_icons
     custom_icons = bpy.utils.previews.new()
-    custom_icons.load('asterisk', get_addon_filepath() + 'asterisk_icon.png', 'IMAGE')
-    #custom_icons.load('matcap', get_addon_filepath() + 'matcap_icon.png', 'IMAGE')
+    filepath = get_addon_filepath() + 'icons' + os.sep
+    custom_icons.load('asterisk', filepath + 'asterisk_icon.png', 'IMAGE')
 
     # Operators
     bpy.utils.register_module(__name__)
