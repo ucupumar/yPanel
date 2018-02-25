@@ -741,7 +741,7 @@ class YPOverrideMaterial(bpy.types.Operator):
 @persistent
 def change_matcap_event(scene):
 
-    if not hasattr(bpy.context, 'object'):
+    if scene.render.engine not in {'BLENDER_RENDER', 'BLENDER_GAME'} or not hasattr(bpy.context, 'object'):
         return
 
     obj = bpy.context.object

@@ -183,6 +183,54 @@ def set_keybind():
                 )           
             kmi.properties.brush = particle_brush_items[i][0]
 
+    # Sculpt keybinds
+    equal_keybind_found = False
+    minus_keybind_found = False
+    alt_equal_keybind_found = False
+    km = wm.keyconfigs.addon.keymaps.get('Sculpt')
+    if not km:
+        km = wm.keyconfigs.addon.keymaps.new('Sculpt')
+
+    for kmi in km.keymap_items:
+        if kmi.type == 'EQUAL':
+            if kmi.idname == 'object.yp_multires_change_sculpt_level':
+                equal_keybind_found = True
+                kmi.active = True
+            else:
+                # Deactivate other equal keybind
+                kmi.active = False
+
+        if kmi.type == 'MINUS':
+            if kmi.idname == 'object.yp_multires_change_sculpt_level':
+                minus_keybind_found = True
+                kmi.active = True
+            else:
+                # Deactivate other equal keybind
+                kmi.active = False
+
+        # Search for Alt Equal keybind
+        if kmi.type == 'EQUAL' and kmi.alt:
+            if kmi.idname == 'object.yp_multires_subdivide':
+                alt_equal_keybind_found = True
+                kmi.active = True
+            else:
+                # Deactivate other Alt Equal keybind
+                kmi.active = False
+
+    # Set equal Keybind
+    if not equal_keybind_found:
+        new_shortcut = km.keymap_items.new('object.yp_multires_change_sculpt_level', 'EQUAL', 'PRESS')
+        new_shortcut.properties.direction = 'UP'
+
+    # Set minus Keybind
+    if not minus_keybind_found:
+        new_shortcut = km.keymap_items.new('object.yp_multires_change_sculpt_level', 'MINUS', 'PRESS')
+        new_shortcut.properties.direction = 'DOWN'
+
+    # Set Alt Equal Keybind
+    if not alt_equal_keybind_found:
+        new_shortcut = km.keymap_items.new('object.yp_multires_subdivide', 'EQUAL', 'PRESS', alt=True)
+
 def remove_keybind():
     wm = bpy.context.window_manager
 
@@ -212,6 +260,16 @@ def remove_keybind():
         for kmi in km.keymap_items:
             if kmi.type in particle_brush_keys:
                 if kmi.idname =='particle.yp_select_brush':
+                    km.keymap_items.remove(kmi)
+                else: kmi.active = True
+
+    km = wm.keyconfigs.addon.keymaps.get('Sculpt')
+    if km:
+        for kmi in km.keymap_items:
+            if kmi.type in {'EQUAL', 'MINUS'}:
+                if ((kmi.type == 'EQUAL' and kmi.idname == 'object.yp_multires_change_sculpt_level') or
+                    (kmi.type == 'EQUAL' and kmi.alt and kmi.idname == 'object.yp_multires_subdivide') or
+                    (kmi.type == 'MINUS' and kmi.idname == 'object.yp_multires_change_sculpt_level')):
                     km.keymap_items.remove(kmi)
                 else: kmi.active = True
 
@@ -287,6 +345,8 @@ class yPanelPreferences(AddonPreferences):
         col.label(text='Shift + Alt + Z')
         col.label(text='D')
         col.label(text='1-8')
+        col.label(text='-/=')
+        col.label(text='Alt + =')
         col=row.column(align=True)
         col.label(text=': Sculpt Mode toggle')
         col.label(text=': Texture Paint Mode toggle (also works on Image Editor)')
@@ -295,6 +355,8 @@ class yPanelPreferences(AddonPreferences):
         col.label(text=': Material Shade toggle')
         col.label(text=': Only Render (viewport) toggle')
         col.label(text=': Change particle edit brush (Particle Edit Mode)')
+        col.label(text=': Change multires level (Sculpt Mode)')
+        col.label(text=': Multires subdivide (Sculpt Mode)')
 
 def register():
     prefs = bpy.context.user_preferences.addons.get('yPanel')

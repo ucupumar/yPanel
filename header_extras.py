@@ -220,52 +220,143 @@ class YPMultiresAdd(bpy.types.Operator):
     bl_label = "Add Multires Modifier"
     bl_description = "Add Multires Modifier"
 
+    apply_modifiers = EnumProperty(
+            name = 'Apply Modifiers',
+            description='Apply Modifiers (The original mesh will be backed up on layer 19)',
+            items = (
+                ('NONE', 'None', ''),
+                ('ALL', 'All', ''),
+                ('ABOVE_RIG', 'Only above Subsurf/Armature', '')),
+            default = 'NONE')
+
+    shade_flat = BoolProperty(
+            name= 'Shade Flat',
+            description = 'Shade Flat',
+            default = True)
+
     @classmethod
     def poll(cls, context):
         return context.object and context.object.mode == 'SCULPT'
 
+    def invoke(self, context, event):
+        obj = context.object
+        if len(obj.modifiers) > 0 :
+            return context.window_manager.invoke_props_dialog(self, width=275)
+        return self.execute(context)
+
+    def draw(self, context):
+        row = self.layout.split(percentage=0.4)
+        col = row.column(align=True)
+        col.label('Apply Modifiers:') #, icon='MODIFIER')
+        col.label('')
+        col.label('')
+        col.label('Shade Flat:')
+
+        col = row.column(align=True)
+        col.prop(self, 'apply_modifiers', expand=True)
+        col.prop(self, 'shade_flat', text='')
+
     def execute(self, context):
+        scene = context.scene
         obj = context.object
 
-        # Search for subsurf modifier first
-        subsurf = None
+        # Variable for subsurf
         subsurf_idx = -1
-        level = 0
-        render_level = 0
-        for i, m in enumerate(obj.modifiers):
-            if m.type == 'SUBSURF':
-                subsurf = m
-                level = m.levels
-                render_level = m.render_levels
-                subsurf_idx = i
-                break
-        
-        if subsurf:
-            obj.modifiers.remove(subsurf)
+        subsurf_level = 0
+        subsurf_type = 'CATMULL_CLARK'
+        subsurf_show_viewport = False
 
-            obj.yp_he.ori_subsurf_index = subsurf_idx
-            obj.yp_he.ori_subsurf_levels = level
-            obj.yp_he.ori_subsurf_render_levels = render_level
+        if self.apply_modifiers in {'ALL', 'ABOVE_RIG'}:
+
+            # Backup original mesh
+            bak_name = 'BACKUP-MULTIRES-' + obj.name
+            bak_obj = obj.copy()
+            bak_obj.data = bak_obj.data.copy()
+            bak_obj.name = bak_name
+            scene.objects.link(bak_obj)
+
+            # Remove groups from duplicate object
+            for g in bpy.data.groups:
+                for o in g.objects:
+                    if o == bak_obj:
+                        g.objects.unlink(bak_obj)
+                        break
+
+            # Move duplicated object to layer 19
+            for i in reversed(range(20)):
+                if i == 19: bak_obj.layers[i] = True
+                else: bak_obj.layers[i] = False
+
+            obj.yp_he.backup_object = bak_obj
+
+            # Make sure object data single user
+            if obj.data.users > 1:
+                obj.data = obj.data.copy()
+
+            if self.apply_modifiers == 'ALL':
+                for m in obj.modifiers:
+                    bpy.ops.object.modifier_apply(apply_as='DATA', modifier=m.name)
+            else:
+                # Search for armature
+                armature = None
+                for i, m in enumerate(obj.modifiers):
+                    if m.type == 'ARMATURE' and not armature:
+                        armature = m
+
+                # If armature found, apply all modifier above it
+                if armature:
+                    for m in obj.modifiers:
+                        if m == armature: break
+                        bpy.ops.object.modifier_apply(apply_as='DATA', modifier=m.name)
+
+                # Now search for subsurf
+                subsurf = None
+                for i, m in enumerate(obj.modifiers):
+                    if m.type == 'SUBSURF' and not subsurf:
+                        subsurf = m
+                        subsurf_idx = i
+                        subsurf_level = m.levels
+                        subsurf_type = m.subdivision_type
+                        subsurf_show_viewport = m.show_viewport
+
+                if subsurf:
+                    # Apply modifiers above subsurf
+                    for m in obj.modifiers:
+                        if m == subsurf: break
+                        if m.type == 'ARMATURE': continue
+                        bpy.ops.object.modifier_apply(apply_as='DATA', modifier=m.name)
+
+                    obj.modifiers.remove(subsurf)
+
+                # If subsurf and armature not found, no need to use backup object
+                if not armature and not subsurf:
+                    bpy.data.objects.remove(bak_obj)
 
         mod = obj.modifiers.new('Multires', 'MULTIRES')
+        mod.subdivision_type = subsurf_type
 
-        # Get current modifier index which not necessarily on last index
-        idx = len(obj.modifiers)-1
-        for i, m in enumerate(obj.modifiers):
-            if m == mod:
-                idx = i
-                break
+        if subsurf_idx > -1:
+            # Get current modifier index which not necessarily on last index
+            idx = len(obj.modifiers)-1
+            for i, m in enumerate(obj.modifiers):
+                if m == mod:
+                    idx = i
+                    break
 
-        if subsurf:
+            # Move modifier to subsurf index
             if idx > subsurf_idx:
                 idx_diff = idx - subsurf_idx
                 for i in range(idx_diff):
                     bpy.ops.object.modifier_move_up(modifier=mod.name)
 
-            if level > 0:
-                for i in range(level):
+            # Change the level
+            if subsurf_show_viewport and subsurf_level > 0:
+                for i in range(subsurf_level):
                     bpy.ops.object.multires_subdivide(modifier=mod.name)
-                mod.levels = level
+                mod.levels = subsurf_level
+
+        if self.shade_flat:
+            bpy.ops.object.yp_shade_smooth_flat(shade='FLAT')
 
         return{'FINISHED'}
 
@@ -273,10 +364,10 @@ class YPMultiresRemove(bpy.types.Operator):
     bl_idname = "object.yp_multires_remove"
     bl_label = "Remove Multires Modifier"
     bl_description = "Remove Multires Modifier"
-    #bl_options = {'REGISTER', 'UNDO'}
+    bl_options = {'REGISTER', 'UNDO'}
 
-    recover_subsurf = BoolProperty(
-            name='Recover Previous Subsurf',
+    recover_backup = BoolProperty(
+            name='Recover to original object',
             description='Try to recover previous subsurf modifier',
             default=True)
 
@@ -286,36 +377,50 @@ class YPMultiresRemove(bpy.types.Operator):
 
     def invoke(self, context, event):
         obj = context.object
-        if obj.yp_he.ori_subsurf_index > -1:
+        if obj.yp_he.backup_object:
             return context.window_manager.invoke_props_dialog(self, width=220)
         return self.execute(context)
 
     def draw(self, context):
-        self.layout.prop(self, 'recover_subsurf')
+        self.layout.prop(self, 'recover_backup')
 
     def execute(self, context):
         obj = context.object
+        scene = context.scene
+
+        if self.recover_backup and obj.yp_he.backup_object:
+
+            # Remove all modifiers first
+            for m in obj.modifiers:
+                obj.modifiers.remove(m)
+
+            # Get original object
+            bak_obj = obj.yp_he.backup_object
+
+            # Replace object data
+            obj.data = bak_obj.data
+
+            # Recover modifiers
+            for m in bak_obj.modifiers:
+                mod = obj.modifiers.new(m.name, m.type)
+                attrs = dir(m)
+                for attr in attrs:
+                    if not attr.startswith(('__', 'bl_', 'rna_')):
+                        try: setattr(mod, attr, getattr(m, attr))
+                        except: pass
+
+            # Remove duplicate object
+            bpy.data.objects.remove(bak_obj)
+
+            return {'FINISHED'}
+
         mod = [m for m in obj.modifiers if m.type == 'MULTIRES']
         if not mod: return {'CANCELLED'}
         mod = mod[0]
-
         obj.modifiers.remove(mod)
 
-        if self.recover_subsurf and obj.yp_he.ori_subsurf_index > -1:
-            mod = obj.modifiers.new('Subsurf', 'SUBSURF')
-            mod.levels = obj.yp_he.ori_subsurf_levels
-            mod.render_levels = obj.yp_he.ori_subsurf_render_levels
-
-            # Bring back to original index
-            last_idx = len(obj.modifiers)-1
-            if obj.yp_he.ori_subsurf_index < last_idx:
-                idx_diff = last_idx - obj.yp_he.ori_subsurf_index
-                for i in range(idx_diff):
-                    bpy.ops.object.modifier_move_up(modifier=mod.name)
-
-            obj.yp_he.ori_subsurf_index = -1
-            obj.yp_he.ori_subsurf_levels = -1
-            obj.yp_he.ori_subsurf_render_levels = -1
+        # Remove duplicate object reference if user choose not to recover object
+        #obj.yp_he.backup_object = None
 
         return {'FINISHED'}
 
@@ -323,13 +428,20 @@ class YPMultiresSubdivide(bpy.types.Operator):
     bl_idname = "object.yp_multires_subdivide"
     bl_label = "Multires Subdivide"
     bl_description = "Multires Subdivide"
+    bl_options = {'REGISTER', 'UNDO'}
 
     @classmethod
     def poll(cls, context):
-        return hasattr(context, 'multires')
+        obj = context.object
+        return any([m for m in obj.modifiers if m.type == 'MULTIRES'])
+        #return hasattr(context, 'multires')
 
     def execute(self, context):
-        mod = context.multires
+        obj = context.object
+
+        if hasattr(context, 'multires'):
+            mod = context.multires
+        else: mod = [m for m in obj.modifiers if m.type == 'MULTIRES'][0]
 
         bpy.ops.object.multires_subdivide(modifier=mod.name)
         mod.levels = mod.sculpt_levels
@@ -338,8 +450,9 @@ class YPMultiresSubdivide(bpy.types.Operator):
 
 class YPMultiresChangeSculptLevel(bpy.types.Operator):
     bl_idname = "object.yp_multires_change_sculpt_level"
-    bl_label = "Change multires Sculpt Level"
+    bl_label = "Change Multires Sculpt Level"
     bl_description = "Change multires Sculpt Level"
+    bl_options = {'REGISTER', 'UNDO'}
 
     direction = EnumProperty(
             name='Direction',
@@ -349,10 +462,16 @@ class YPMultiresChangeSculptLevel(bpy.types.Operator):
 
     @classmethod
     def poll(cls, context):
-        return hasattr(context, 'multires')
+        obj = context.object
+        return any([m for m in obj.modifiers if m.type == 'MULTIRES'])
+        #return hasattr(context, 'multires')
 
     def execute(self, context):
-        mod = context.multires
+        obj = context.object
+
+        if hasattr(context, 'multires'):
+            mod = context.multires
+        else: mod = [m for m in obj.modifiers if m.type == 'MULTIRES'][0]
 
         if self.direction == 'UP':
             mod.sculpt_levels += 1
@@ -698,6 +817,7 @@ def modified_global_header(self, context):
 
     # Original reports banner
     row.template_reports_banner()
+    row.separator()
 
     if bpy.app.autoexec_fail is True and bpy.app.autoexec_fail_quiet is False:
         row.label("Auto-run disabled", icon='ERROR')
@@ -774,7 +894,7 @@ def modified_global_header(self, context):
                 row.operator("object.yp_multires_subdivide", text="", icon='ZOOMIN')
                 row.operator("object.yp_multires_change_sculpt_level", text="", icon='TRIA_LEFT').direction = 'DOWN'
                 row.operator("object.yp_multires_change_sculpt_level", text="", icon='TRIA_RIGHT').direction = 'UP'
-                row.operator('view3d.yp_multires_settings', text='', icon='SCRIPTWIN')
+                row.operator('view3d.yp_multires_settings', text='', icon='MODIFIER')
                 row.label('Level: ' + str(mod.sculpt_levels) + '/' + str(mod.total_levels))
 
             elif context.sculpt_object.use_dynamic_topology_sculpting:
@@ -844,10 +964,8 @@ def modified_global_header(self, context):
 
 original_global_header = bpy.types.INFO_HT_header.draw
 
-class YPHeaderExtrasProps(bpy.types.PropertyGroup):
-    ori_subsurf_index = IntProperty(default=-1)
-    ori_subsurf_levels = IntProperty(default=-1)
-    ori_subsurf_render_levels = IntProperty(default=-1)
+class YPHEBackup(bpy.types.PropertyGroup):
+    backup_object = PointerProperty(type=bpy.types.Object)
 
 def register():
     # Custom Icon
@@ -864,7 +982,7 @@ def register():
     custom_icons.load('y_light', filepath + 'y_light_icon.png', 'IMAGE')
     custom_icons.load('z_light', filepath + 'z_light_icon.png', 'IMAGE')
 
-    bpy.types.Object.yp_he = PointerProperty(type=YPHeaderExtrasProps)
+    bpy.types.Object.yp_he = PointerProperty(type=YPHEBackup)
 
 def unregister():
     # Custom Icon
