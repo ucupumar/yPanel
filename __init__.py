@@ -2,7 +2,7 @@ bl_info = {
     "name": "yPanel",
     "author": "Yusuf Umar",
     "version": (0, 1, 0),
-    "blender": (2, 77, 0),
+    "blender": (2, 79, 0),
     "location": "3D View > Properties Panel > Top Row",
     "description": "Panel for some of your realtime content creation needs",
     "wiki_url": "http://twitter.com/ucupumar",
