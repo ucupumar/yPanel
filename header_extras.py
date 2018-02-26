@@ -566,17 +566,61 @@ class YPMatcapMenu(bpy.types.Menu):
             col.operator('view3d.yp_set_matcap', text='Matcap ' + str(i), icon='MATCAP_' + str(i).zfill(2)
                     ).matcap = str(i).zfill(2)
 
+class YPToggleShadeSmooth(bpy.types.Operator):
+    bl_idname = "view3d.yp_toggle_shade_smooth"
+    bl_label = "Toggle Shade Smooth"
+    bl_description = "Toggle Shade Smooth"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    @classmethod
+    def poll(cls, context):
+        return context.object and context.object.type == 'MESH' and context.area.type == 'VIEW_3D'
+
+    def execute(self, context):
+        obj = context.object
+
+        if len(obj.data.polygons) == 0: return {'CANCELLED'}
+
+        if obj.mode == 'SCULPT' and context.sculpt_object.use_dynamic_topology_sculpting:
+            sculpt = context.tool_settings.sculpt
+            sculpt.use_smooth_shading = not sculpt.use_smooth_shading
+
+        else:
+
+            # Smooth or not depends on the first polygon
+            smooth = obj.data.polygons[0].use_smooth
+            if smooth:
+                for p in obj.data.polygons:
+                    p.use_smooth = False
+            else:
+                for p in obj.data.polygons:
+                    p.use_smooth = True
+
+        return {'FINISHED'}
+
 class YPToggleWire(bpy.types.Operator):
     bl_idname = "view3d.yp_toggle_display_wire"
     bl_label = "Toggle Display Wire"
     bl_description = "Toggle Display Wire"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    only_active = BoolProperty(
+            name='Only Active Object',
+            description='Only Active Object',
+            default=False)
 
     @classmethod
     def poll(cls, context):
-        return True
+        return context.area.type == 'VIEW_3D'
 
     def execute(self, context):
         obj = context.object
+
+        if self.only_active:
+            obj.show_wire = not obj.show_wire
+            if obj.show_wire:
+                obj.show_all_edges = True
+            return {'FINISHED'}
 
         not_wired_found = any([o for o in bpy.data.objects 
             if in_active_layer(o) and o.type in {'MESH', 'CURVE'} and not o.show_wire])
@@ -734,7 +778,7 @@ def viewport_header_addition(self, context):
     row = layout.row()
     row.enabled = not space.show_only_render
     #if not space.show_only_render:
-    row.operator('view3d.yp_toggle_display_wire', text='', icon='WIRE')
+    row.operator('view3d.yp_toggle_display_wire', text='', icon='WIRE').only_active = False
 
     #layout.prop(scene, "frame_current", text="Frame")
 

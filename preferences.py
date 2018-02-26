@@ -100,6 +100,8 @@ def set_keybind():
     f9_keybind_found = False
     z_keybind_found = False
     d_keybind_found = False
+    w_keybind_found = False
+    q_keybind_found = False
 
     # Mode change keybinds need Window keymaps
     km = wm.keyconfigs.addon.keymaps.get('Window')
@@ -143,6 +145,24 @@ def set_keybind():
                 # Deactivate other D keybind
                 kmi.active = False
 
+        # Search for W keybind
+        if kmi.type == 'W' and kmi.shift and kmi.alt:
+            if kmi.idname == 'view3d.yp_toggle_display_wire':
+                w_keybind_found = True
+                kmi.active = True
+            else:
+                # Deactivate other D keybind
+                kmi.active = False
+
+        # Search for Q keybind
+        if kmi.type == 'Q' and kmi.shift and kmi.alt:
+            if kmi.idname == 'view3d.yp_toggle_shade_smooth':
+                q_keybind_found = True
+                kmi.active = True
+            else:
+                # Deactivate other D keybind
+                kmi.active = False
+
     # Set F4 Keybind
     if not f4_keybind_found:
         new_shortcut = km.keymap_items.new('paint.yp_image_paint_toggle', 'F4', 'PRESS')
@@ -158,6 +178,15 @@ def set_keybind():
     # Set D Keybind
     if not d_keybind_found:
         new_shortcut = km.keymap_items.new('view3d.yp_only_render_toggle', 'D', 'PRESS')
+
+    # Set Shift Alt W keybind
+    if not w_keybind_found:
+        new_shortcut = km.keymap_items.new('view3d.yp_toggle_display_wire', 'W', 'PRESS', shift=True, alt=True)
+        new_shortcut.properties.only_active = True
+
+    # Set Shift Alt Q keybind
+    if not q_keybind_found:
+        new_shortcut = km.keymap_items.new('view3d.yp_toggle_shade_smooth', 'Q', 'PRESS', shift=True, alt=True)
 
     # Particle edit keybinds
     km = wm.keyconfigs.addon.keymaps.get('Particle')
@@ -247,10 +276,12 @@ def remove_keybind():
     km = wm.keyconfigs.addon.keymaps.get('Window')
     if km:
         for kmi in km.keymap_items:
-            if kmi.type in {'F4', 'F9', 'Z', 'D'}:
+            if kmi.type in {'F4', 'F9', 'Z', 'D', 'W', 'Q'}:
                 if ((kmi.type == 'F4' and kmi.idname == 'paint.yp_image_paint_toggle') or
                     (kmi.type == 'F9' and kmi.idname == 'scene.yp_use_simplify_toggle') or
                     (kmi.type == 'Z' and kmi.shift and kmi.alt and kmi.idname == 'view3d.yp_material_shade_toggle') or
+                    (kmi.type == 'W' and kmi.shift and kmi.alt and kmi.idname == 'view3d.yp_toggle_display_wire') or
+                    (kmi.type == 'Q' and kmi.shift and kmi.alt and kmi.idname == 'view3d.yp_toggle_shade_smooth') or
                     (kmi.type == 'D' and kmi.idname == 'view3d.yp_only_render_toggle')):
                     km.keymap_items.remove(kmi)
                 else: kmi.active = True
@@ -343,6 +374,8 @@ class yPanelPreferences(AddonPreferences):
         col.label(text='F7')
         col.label(text='F9')
         col.label(text='Shift + Alt + Z')
+        col.label(text='Shift + Alt + W')
+        col.label(text='Shift + Alt + Q')
         col.label(text='D')
         col.label(text='1-8')
         col.label(text='-/=')
@@ -353,6 +386,8 @@ class yPanelPreferences(AddonPreferences):
         col.label(text=': Particle Edit Mode toggle')
         col.label(text=': Use Simplify toggle')
         col.label(text=': Material Shade toggle')
+        col.label(text=': Show Wireframe toggle')
+        col.label(text=': Smooth/Flat Shade toggle')
         col.label(text=': Only Render (viewport) toggle')
         col.label(text=': Change particle edit brush (Particle Edit Mode)')
         col.label(text=': Change multires level (Sculpt Mode)')
