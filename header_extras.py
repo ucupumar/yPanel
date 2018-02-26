@@ -570,7 +570,7 @@ class YPToggleShadeSmooth(bpy.types.Operator):
     bl_idname = "view3d.yp_toggle_shade_smooth"
     bl_label = "Toggle Shade Smooth"
     bl_description = "Toggle Shade Smooth"
-    bl_options = {'REGISTER', 'UNDO'}
+    #bl_options = {'REGISTER', 'UNDO'}
 
     @classmethod
     def poll(cls, context):
@@ -602,7 +602,7 @@ class YPToggleWire(bpy.types.Operator):
     bl_idname = "view3d.yp_toggle_display_wire"
     bl_label = "Toggle Display Wire"
     bl_description = "Toggle Display Wire"
-    bl_options = {'REGISTER', 'UNDO'}
+    #bl_options = {'REGISTER', 'UNDO'}
 
     only_active = BoolProperty(
             name='Only Active Object',
