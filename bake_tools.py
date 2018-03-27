@@ -469,6 +469,7 @@ class YPBakeStuffs(bpy.types.Operator):
                 bpy.data.images.remove(img, do_unlink=True)
 
     def select_object(self, o):
+        o.hide = False
         sce = bpy.context.scene
         bpy.ops.object.select_all(action='DESELECT')
         o.select = True
@@ -829,6 +830,7 @@ class YPBakeStuffs(bpy.types.Operator):
         # Remember active object and object selection
         self.original_active_object = context.object
         self.original_selected_objects = [o for o in sce.objects if o.select]
+        self.original_object_hide = [o for o in sce.objects if o.hide]
         #self.old_mode = context.object.mode
         self.old_active_layers = [i for i, layer in enumerate(sce.layers) if layer == True]
 
@@ -948,6 +950,11 @@ class YPBakeStuffs(bpy.types.Operator):
                 o.select = True
             else: o.select = False
 
+            # Recover hide
+            if o in self.original_object_hide:
+                o.hide = True
+            else: o.hide = False
+
             # Recover object layers
             if o.name in self.original_object_layers:
                 # Set active layer
@@ -1051,7 +1058,9 @@ class YPBakeStuffs(bpy.types.Operator):
         self.baked_count = 0
 
         # Go to object mode
+        old_hide = context.object.hide
         old_mode = context.object.mode
+        context.object.hide = False
         bpy.ops.object.mode_set(mode='OBJECT') 
 
         # Turn off material override
@@ -1086,6 +1095,7 @@ class YPBakeStuffs(bpy.types.Operator):
 
         # Go back to old mode
         bpy.ops.object.mode_set(mode=old_mode)
+        context.object.hide = old_hide
 
         # Select target image
         mat = context.object.active_material

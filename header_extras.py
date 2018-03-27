@@ -669,7 +669,7 @@ def mode_switcher_panel(layout):
     if not obj or obj.mode == 'OBJECT':
         row.alert = False
 
-    if obj and in_active_layer(obj):
+    if obj and not obj.hide and in_active_layer(obj):
 
         use_mode_particle_edit = (
                 len(obj.particle_systems) > 0 or

@@ -140,9 +140,12 @@ class YPAddSimpleUVs(bpy.types.Operator):
 
         # Add simple uvs
         old_mode = obj.mode
+        old_hide = obj.hide
+        obj.hide = False
         bpy.ops.object.mode_set(mode='TEXTURE_PAINT')
         bpy.ops.paint.add_simple_uvs()
         bpy.ops.object.mode_set(mode=old_mode)
+        obj.hide = old_hide
 
         #new_uv = mesh.uv_layers.active
         #new_uv.name = 'SimpleUV'

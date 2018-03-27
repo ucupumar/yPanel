@@ -479,6 +479,7 @@ class YPRefreshPaintSlots(bpy.types.Operator):
         if obj: 
             old_active = obj.name
             old_mode = obj.mode
+            old_hide = obj.hide
         old_selects = [o for o in context.selected_objects]
 
         # Halt update
@@ -499,6 +500,9 @@ class YPRefreshPaintSlots(bpy.types.Operator):
         if not mats: return {'FINISHED'}
 
         if obj:
+            # Unhide object
+            obj.hide = False
+
             bpy.ops.object.mode_set(mode='OBJECT')
             bpy.ops.object.select_all(action='DESELECT')
 
@@ -548,6 +552,7 @@ class YPRefreshPaintSlots(bpy.types.Operator):
             scene.objects.active = scene.objects.get(old_active)
             if in_active_layer(obj):
                 bpy.ops.object.mode_set(mode=old_mode)
+            obj.hide = old_hide
 
         mat = get_active_material()
 
