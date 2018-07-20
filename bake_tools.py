@@ -28,6 +28,19 @@ blend_type_items = (("MIX", "Mix", ""),
 	             ("SOFT_LIGHT", "Soft Light", ""),
 	             ("LINEAR_LIGHT", "Linear Light", ""))
 
+
+bake_type_items = (
+            ('NORMALS', "Normal", ""),
+            ('AO', "AO", ""),
+            ('DIRTY', "Dirty Vertex Color", ""),
+            ('LIGHTS', "Lights", ""),
+            ('SHADOW', "Shadow", ""),
+            ('DIFFUSE_COLOR', "Diffuse Color", ""),
+            ('SPECULAR_COLOR', "Specular Color", ""),
+            ('FULL_RENDER', "Full Render", ""),
+            #('POINTINESS', "Pointiness", ""),
+            )
+
 vcol_mat_name = '__VCOL_MAT_TEMP'
 temp_lamp_name = '__temp_lamp__'
 
@@ -76,16 +89,7 @@ class YPBakeStuffs(bpy.types.Operator):
     type = EnumProperty(
         name = "Type",
         description="Type of bake", 
-        items=(
-            ('NORMALS', "Normal", ""),
-            ('AO', "Ambient Occlusion", ""),
-            ('DIRTY', "Dirty Vertex Color", ""),
-            ('LIGHTS', "Lights", ""),
-            ('DIFFUSE_COLOR', "Diffuse Color", ""),
-            ('SPECULAR_COLOR', "Specular Color", ""),
-            ('FULL_RENDER', "Full Render", ""),
-            #('POINTINESS', "Pointiness", ""),
-            ), 
+        items=bake_type_items,
         default='AO',
         )
 
@@ -233,6 +237,8 @@ class YPBakeStuffs(bpy.types.Operator):
                 ts.blend_type = opt.dirty_blend
             elif self.type == 'LIGHTS':
                 ts.blend_type = opt.lights_blend
+            elif self.type == 'SHADOW':
+                ts.blend_type = opt.shadow_blend
             elif self.type == 'DIFFUSE_COLOR':
                 ts.blend_type = opt.color_blend
             elif self.type == 'SPECULAR_COLOR':
@@ -420,6 +426,8 @@ class YPBakeStuffs(bpy.types.Operator):
             #sce.render.bake_type = 'FULL'
         elif self.type in {'LIGHTS', 'FULL_RENDER'}:
             sce.render.bake_type = 'FULL'
+        elif self.type == 'SHADOW':
+            sce.render.bake_type = 'SHADOW'
         #elif self.type == 'DIFFUSE_COLOR':
         elif self.type in {'DIFFUSE_COLOR', 'SPECULAR_COLOR'}:
             sce.render.bake_type = 'TEXTURE'
@@ -430,7 +438,7 @@ class YPBakeStuffs(bpy.types.Operator):
         #if sce.render.engine == 'BLENDER_RENDER':
         sce.render.use_bake_clear = False
 
-        if self.type in {'LIGHTS'} or (sce.render.bake_type == 'AO' and not opt.use_highpoly):
+        if self.type in {'LIGHTS', 'SHADOW'} or (sce.render.bake_type == 'AO' and not opt.use_highpoly):
             sce.render.use_bake_selected_to_active = False
         else:
             sce.render.use_bake_selected_to_active = True
@@ -545,7 +553,7 @@ class YPBakeStuffs(bpy.types.Operator):
         world.light_settings.use_environment_light = False
         world.light_settings.use_indirect_light = False
 
-        if opt.bake_light_type == 'AVAILABLE':
+        if self.type == 'SHADOW' or opt.bake_light_type == 'AVAILABLE':
             for obj in sce.objects:
                 if obj.type == 'LAMP' and in_active_layer(obj):
                     self.affected_lights.append(obj)
@@ -607,15 +615,17 @@ class YPBakeStuffs(bpy.types.Operator):
                     ob.data.pose_position = 'REST'
 
         # Dealing with isolated bake
-        if (self.type == 'AO' and opt.isolated_ao) or (self.type == 'LIGHTS' and opt.isolated_light):
-            #print('aaaaaaa')
+        if ((self.type == 'AO' and opt.isolated_ao) or 
+            (self.type == 'LIGHTS' and opt.isolated_light) or
+            (self.type == 'SHADOW' and opt.isolated_shadow)
+            ):
 
             active_layer = [i for i, layer in enumerate(sce.layers) if layer == True][0]
             inactive_layer = [i for i in range(20) if i != active_layer][0]
             #print(active_layer, inactive_layer)
             #print(objs)
 
-            if self.type == 'LIGHTS':
+            if self.type in {'LIGHTS', 'SHADOW'}:
                 affected_objs = objs + self.affected_lights
             else: affected_objs = objs
 
@@ -647,8 +657,11 @@ class YPBakeStuffs(bpy.types.Operator):
                 # Disable shadeless
                 m.use_shadeless = False
 
+                if self.type == 'SHADOW':
+                    m.use_shadows = True
+
                 # Make material color pure white for AO and light baking
-                if self.type in {'AO', 'LIGHTS'}:
+                if self.type in {'AO', 'LIGHTS', 'SHADOW'}:
                     m.diffuse_intensity = 1.0
                     m.diffuse_color = (1.0, 1.0, 1.0)
                     m.use_diffuse_ramp = False
@@ -728,7 +741,7 @@ class YPBakeStuffs(bpy.types.Operator):
 
         self.prepare_bake_setting()
 
-        if self.type in {'LIGHTS'}:
+        if self.type in {'LIGHTS', 'SHADOW'}:
             self.setup_lights()
 
         # Cycle though objects
@@ -803,11 +816,15 @@ class YPBakeStuffs(bpy.types.Operator):
 
                 #return {'FINISHED'}
 
-                # If set shadeless if forced
+                # If set shadeless is forced
                 if ((self.type == 'LIGHTS' and opt.set_shadeless_after_baking_lights) or
                     (self.type == 'FULL_RENDER' and opt.set_shadeless_after_baking_full_render)
                     ):
                     m.use_shadeless = True
+
+                # If disable receive shadow is forced
+                if self.type == 'SHADOW' and opt.disable_receive_shadow_after_baking_shadow:
+                    m.use_shadows = False
 
                 # Activate  paint slot if disabled
 
@@ -881,6 +898,7 @@ class YPBakeStuffs(bpy.types.Operator):
                     m.bt_props.original_diffuse_color = m.diffuse_color
                     m.bt_props.original_use_nodes = m.use_nodes
                     m.bt_props.original_use_shadeless = m.use_shadeless
+                    m.bt_props.original_use_shadows = m.use_shadows
                     m.bt_props.original_use_diffuse_ramp = m.use_diffuse_ramp
 
                     # Remember material active slot
@@ -1009,6 +1027,9 @@ class YPBakeStuffs(bpy.types.Operator):
                         pass
                     else: m.use_shadeless = m.bt_props.original_use_shadeless
 
+                    if not opt.disable_receive_shadow_after_baking_shadow:
+                        m.use_shadows = m.bt_props.original_use_shadows
+
                     original_active_slots = [int(i) for i in m.bt_props.original_active_slots.split(';') if i != '']
                     original_not_use_diffuse_color = [int(i) for i in m.bt_props.original_not_use_diffuse_color.split(';') if i != '']
                     original_diffuse_color_factor = {int(a.split('#')[0]) : float(a.split('#')[1]) for a in m.bt_props.original_diffuse_color_factor.split(';') if a != ''}
@@ -1129,16 +1150,7 @@ class YPBakeToolsSetting(bpy.types.PropertyGroup):
     bake_type = EnumProperty(
         name = "Bake Type",
         description="Type of bake", 
-        items=(
-            ('NORMALS', "Normal", ""),
-            ('AO', "AO", ""),
-            ('DIRTY', "Dirty Vertex Color", ""),
-            ('LIGHTS', "Lights", ""),
-            ('DIFFUSE_COLOR', "Diffuse Color", ""),
-            ('SPECULAR_COLOR', "Specular Color", ""),
-            ('FULL_RENDER', "Full Render", ""),
-            #('POINTINESS', "Pointiness", ""),
-            ), 
+        items=bake_type_items,
         default='AO',
         )
 
@@ -1218,6 +1230,7 @@ class YPBakeToolsSetting(bpy.types.PropertyGroup):
     normals_suffix = StringProperty(default='_N')
     dirty_suffix = StringProperty(default='_DVC')
     lights_suffix = StringProperty(default='_L')
+    shadow_suffix = StringProperty(default='_SHAD')
     diffuse_color_suffix = StringProperty(default='_D')
     specular_color_suffix = StringProperty(default='_S')
     full_render_suffix = StringProperty(default='_F')
@@ -1238,6 +1251,7 @@ class YPBakeToolsSetting(bpy.types.PropertyGroup):
     ao_blend = EnumProperty(items = blend_type_items, default = 'MULTIPLY')
     dirty_blend = EnumProperty(items = blend_type_items, default = 'ADD')
     lights_blend = EnumProperty(items = blend_type_items, default = 'MULTIPLY')
+    shadow_blend = EnumProperty(items = blend_type_items, default = 'MULTIPLY')
     color_blend = EnumProperty(items = blend_type_items, default = 'MIX')
     specular_blend = EnumProperty(items = blend_type_items, default = 'MIX')
     full_render_blend = EnumProperty(items = blend_type_items, default = 'MIX')
@@ -1256,8 +1270,11 @@ class YPBakeToolsSetting(bpy.types.PropertyGroup):
     set_shadeless_after_baking_lights = BoolProperty(name='Set Shadeless after Baking', default=True)
     set_shadeless_after_baking_full_render = BoolProperty(name='Set Shadeless after Baking', default=True)
 
+    disable_receive_shadow_after_baking_shadow = BoolProperty(name='Disable Receive Shadow after Baking', default=True)
+
     isolated_ao = BoolProperty(name="Isolate object so other objects won't affect the ao result", default=False)
     isolated_light = BoolProperty(name="Isolate object so other objects won't affect the baked light result", default=False)
+    isolated_shadow = BoolProperty(name="Isolate object so other objects won't affect the baked shadow result", default=False)
 
     light_color = FloatVectorProperty(name='Light Color', size=3, subtype='COLOR', default=(1.0,1.0,1.0), min=0.0, max=1.0)
 
@@ -1276,6 +1293,7 @@ class YPMaterialBakeToolsProps(bpy.types.PropertyGroup):
             size=3, subtype='COLOR', default=(0.0,0.0,0.0), min=0.0, max=1.0)
     original_use_nodes = BoolProperty(default=False)
     original_use_shadeless = BoolProperty(default=False)
+    original_use_shadows = BoolProperty(default=False)
     original_not_use_diffuse_color = StringProperty(default='')
     original_diffuse_color_factor = StringProperty(default='')
     original_specular_color_factor = StringProperty(default='')

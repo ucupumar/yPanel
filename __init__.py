@@ -905,6 +905,18 @@ class VIEW3D_PT_ypanel(bpy.types.Panel):
         incol.prop(settings, 'set_shadeless_after_baking_lights')
         incol.prop(settings, "isolated_light", text='Isolate object') #, text='Method')
 
+    def bake_shadow_settings_panel(self, box):
+
+        settings = bpy.context.scene.bt_props
+
+        col = box.column()
+        inbox = col.box()
+        incol = inbox.column()
+        incol.prop(settings, 'shadow_suffix', text='Suffix')
+        incol.prop(settings, 'shadow_blend', text='Blend')
+        incol.prop(settings, 'disable_receive_shadow_after_baking_shadow')
+        incol.prop(settings, "isolated_shadow", text='Isolate object') #, text='Method')
+
     def bake_diffuse_color_settings_panel(self, box):
 
         settings = bpy.context.scene.bt_props
@@ -968,6 +980,8 @@ class VIEW3D_PT_ypanel(bpy.types.Panel):
                 self.bake_dirty_vertex_color_settings_panel(box)
             elif settings.bake_type == 'LIGHTS':
                 self.bake_lights_settings_panel(box)
+            elif settings.bake_type == 'SHADOW':
+                self.bake_shadow_settings_panel(box)
             elif settings.bake_type == 'DIFFUSE_COLOR':
                 self.bake_diffuse_color_settings_panel(box)
             elif settings.bake_type == 'SPECULAR_COLOR':
@@ -1313,6 +1327,7 @@ class TEXTURE_UL_yp_paint_slots(bpy.types.UIList):
                     row.label(text='', icon_value=custom_icons["asterisk"].icon_id)
                 if texpaint.packed_file:
                     row.label(text='', icon='PACKAGE')
+                else: row = layout.row(align=True)
                 #else: row.label(text='', icon='FILE_TICK')
                 if ts.use_rgb_to_intensity:
                     row.prop(ts, 'color', text='', icon='COLOR')

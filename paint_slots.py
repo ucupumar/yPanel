@@ -2063,6 +2063,7 @@ class YPNewMaterial(bpy.types.Operator):
 @persistent
 def recover_loss_of_active_paint_slot_index_hack(scene):
 
+    if not hasattr(bpy.context, 'object'): return
     obj = bpy.context.object
     if not obj: return
 
