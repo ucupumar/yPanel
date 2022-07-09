@@ -1,4 +1,4 @@
-# yPanel
+# yPanel (Blender 2.79 Only)
 yPanel is a Blender addon that consists of many tools to help you creating realtime asset.
 
 #### Guide videos:
